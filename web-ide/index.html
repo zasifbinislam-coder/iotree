@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IoTree Web IDE — visual board + sensor builder</title>
+<meta name="theme-color" content="#1e1e1e">
+<link rel="icon" type="image/svg+xml" href="../plant-sim-ide/icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="ide">
+
+  <header class="topbar">
+    <div class="title">
+      <span class="logo">🧩</span>
+      <b>IoTree Web IDE</b>
+      <span class="muted">— pick a board, drop sensors, click pins to wire, get the code.</span>
+    </div>
+    <div class="controls">
+      <select id="boardSelect" class="btn select-btn" title="Pick a board">
+      </select>
+      <span class="divider"></span>
+      <button id="autoWireBtn" class="btn" title="Auto-connect power & ground for all components">⚡ Auto-power</button>
+      <button id="clearBtn" class="btn">🗑️ Clear</button>
+      <span class="divider"></span>
+      <button id="copyCodeBtn" class="btn">📋 Copy code</button>
+      <button id="exportBtn" class="btn primary">📤 Open in Wokwi</button>
+      <button id="downloadBtn" class="btn">⬇ Download project</button>
+    </div>
+  </header>
+
+  <main class="main-grid">
+
+    <!-- LEFT: Component catalog -->
+    <aside class="catalog">
+      <div class="catalog-header">
+        <span>Components</span>
+        <input type="search" id="catalogSearch" placeholder="Search…" />
+      </div>
+      <div id="catalogList" class="catalog-list"></div>
+      <div class="catalog-footer">
+        <span class="muted small">Click a component to add it to the canvas.</span>
+      </div>
+    </aside>
+
+    <!-- CENTER: Canvas -->
+    <section class="canvas-panel">
+      <div class="canvas-bar">
+        <span id="canvasHint" class="canvas-hint">Click a pin on one part, then a pin on another part to wire them.</span>
+        <span class="spacer"></span>
+        <span class="muted small" id="wireCount">0 wires</span>
+      </div>
+      <div class="canvas-wrap">
+        <svg id="canvas" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#2a2f3a" stroke-width="0.5"/>
+            </pattern>
+            <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1c1f26"/>
+              <stop offset="100%" stop-color="#14171c"/>
+            </linearGradient>
+          </defs>
+          <rect width="1200" height="700" fill="url(#bgGrad)"/>
+          <rect width="1200" height="700" fill="url(#grid)"/>
+          <g id="wireLayer"></g>
+          <g id="partLayer"></g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- RIGHT: Code + libraries panel -->
+    <aside class="output-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="code">sketch.ino</button>
+        <button class="tab" data-tab="libs">libraries</button>
+        <button class="tab" data-tab="wires">wiring</button>
+      </div>
+      <div class="output-content">
+        <pre id="codeOutput" class="code-out" data-tab-pane="code"></pre>
+        <div id="libsOutput" class="libs-out hidden" data-tab-pane="libs">
+          <p class="muted small">Add the following libraries via Arduino IDE → Tools → Manage Libraries, or in PlatformIO via <code>lib_deps</code>. They are auto-included in the Wokwi project export.</p>
+          <ul id="libsList"></ul>
+        </div>
+        <div id="wiresOutput" class="wires-out hidden" data-tab-pane="wires">
+          <table class="wires-table">
+            <thead><tr><th>From</th><th>To</th><th></th></tr></thead>
+            <tbody id="wiresList"></tbody>
+          </table>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <footer class="status-bar" id="statusBar">
+    <span id="statusMsg">ready — pick a board and start adding components</span>
+    <span class="spacer"></span>
+    <a href="../" class="muted small">← back to hub</a>
+  </footer>
+
+</div>
+
+<script src="catalog.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
