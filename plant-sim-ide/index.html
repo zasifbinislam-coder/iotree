@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plant Sim IDE</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="ide">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="title">
+      <span class="logo">🌱</span>
+      <b>Plant Sim IDE</b>
+      <span class="muted">— paste sketch + diagram, click Run, watch your plant.</span>
+    </div>
+    <div class="controls">
+      <button id="runBtn" class="btn primary">▶ Run</button>
+      <button id="pauseBtn" class="btn">⏸ Pause</button>
+      <button id="resetBtn" class="btn">🔄 Reset</button>
+      <span class="divider"></span>
+      <label class="btn file-btn" for="loadInput">📂 Load .ino</label>
+      <input id="loadInput" type="file" accept=".ino,.txt,.cpp,.h,application/json" hidden>
+      <button id="saveBtn" class="btn">💾 Save sketch</button>
+      <button id="exampleBtn" class="btn">📑 Reset to example</button>
+    </div>
+  </header>
+
+  <main class="main-grid">
+
+    <!-- ============ LEFT: EDITOR ============ -->
+    <section class="editor-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="sketch">sketch.ino</button>
+        <button class="tab" data-tab="diagram">diagram.json</button>
+        <button class="tab" data-tab="help">help</button>
+        <span class="tab-spacer"></span>
+        <span class="dirty-indicator" id="dirtyDot" title="Unsaved changes"></span>
+      </div>
+
+      <div class="editor-wrap">
+        <div class="editor-with-gutter" data-tab-pane="sketch">
+          <div class="gutter" id="sketchGutter"></div>
+          <textarea id="sketchEditor" class="editor" spellcheck="false" wrap="off"></textarea>
+        </div>
+        <div class="editor-with-gutter hidden" data-tab-pane="diagram">
+          <div class="gutter" id="diagramGutter"></div>
+          <textarea id="diagramEditor" class="editor" spellcheck="false" wrap="off"></textarea>
+        </div>
+        <div class="help-pane hidden" data-tab-pane="help">
+          <h2>How this IDE works</h2>
+          <p><b>What it does:</b> parses the constants from your <code>sketch.ino</code> and feeds them to a visual simulation of the plant + tank + pump + nozzle scene. Edit the constants below, hit <b>▶ Run</b>, and watch how your changes affect the watering behaviour.</p>
+
+          <h3>Constants the simulator reads from your sketch</h3>
+          <ul>
+            <li><code>DRY_THRESHOLD</code> — moisture raw value at/above which soil is "dry"</li>
+            <li><code>WET_FLOOR</code> — raw value at/below which soil shows 100%</li>
+            <li><code>PUMP_BURST_MS</code> — how long the pump runs per burst</li>
+            <li><code>SOAK_WAIT_MS</code> — how long to wait for water to soak in</li>
+            <li><code>PUMP_COOLDOWN_MS</code> — minimum gap between pump bursts</li>
+            <li><code>SAMPLE_INTERVAL_MS</code> — how often to read the soil sensor</li>
+            <li><code>MAX_PUMPS_PER_DAY</code> — hard daily cap on watering</li>
+            <li><code>PUMP_ACTIVE_LOW</code> — relay polarity (cosmetic in the sim)</li>
+          </ul>
+
+          <h3>What it can't do</h3>
+          <p>This is not a real Arduino emulator. It can't actually execute your C++ code byte-by-byte — that would require a full chip simulator like Wokwi. But for the plant logic, it gives the same end-to-end story: change a constant, see how the watering behaves differently.</p>
+
+          <h3>How to share this</h3>
+          <p>Zip the whole <code>plant-sim-ide</code> folder and send it to anyone. They open <code>index.html</code> in any modern browser — no install, no internet needed. They can paste their own sketch and test it.</p>
+
+          <h3>Hot keys</h3>
+          <ul>
+            <li><kbd>Ctrl + Enter</kbd> — Run</li>
+            <li><kbd>Ctrl + S</kbd> — Save sketch as .ino</li>
+            <li><kbd>Tab</kbd> in the editor — inserts 2 spaces (not a focus jump)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <span id="parseStatus" class="status-msg">idle</span>
+        <span class="spacer"></span>
+        <span class="muted" id="lineCol">Ln 1, Col 1</span>
+      </div>
+    </section>
+
+    <!-- ============ RIGHT: SIMULATOR ============ -->
+    <section class="sim-panel">
+
+      <!-- Scene -->
+      <div class="scene-wrap">
+        <svg viewBox="0 0 1000 460" id="scene">
+          <defs>
+            <linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5fb8ff"/>
+              <stop offset="100%" stop-color="#1e6fc8"/>
+            </linearGradient>
+            <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#a3acb6"/>
+              <stop offset="100%" stop-color="#525a64"/>
+            </linearGradient>
+            <linearGradient id="gPot" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#d77e54"/>
+              <stop offset="100%" stop-color="#9c5430"/>
+            </linearGradient>
+            <radialGradient id="gSun" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0%" stop-color="#ffe478"/>
+              <stop offset="100%" stop-color="#ffb338" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <!-- Sky background gradient -->
+          <rect x="0" y="0" width="1000" height="400" fill="url(#gSun)" opacity="0.0"/>
+          <rect x="0" y="0" width="1000" height="400" fill="#a3d8f4"/>
+          <rect x="0" y="280" width="1000" height="120" fill="#bfe2c4"/>
+
+          <!-- Sun -->
+          <circle cx="900" cy="60" r="42" fill="url(#gSun)"/>
+          <circle cx="900" cy="60" r="22" fill="#ffd34d"/>
+
+          <!-- Ground -->
+          <rect x="0" y="400" width="1000" height="60" fill="#82a86c"/>
+          <rect x="0" y="395" width="1000" height="8" fill="#6d9456"/>
+
+          <!-- Water tank -->
+          <g transform="translate(60,140)">
+            <rect x="-4" y="-4" width="138" height="238" rx="10" fill="rgba(255,255,255,0.18)"/>
+            <rect x="0" y="0" width="130" height="230" rx="8" fill="rgba(200,230,255,0.22)" stroke="#7aa3c4" stroke-width="2"/>
+            <g class="wave">
+              <rect class="tank-water" x="3" y="30" width="124" height="197" fill="url(#gWater)" rx="4"/>
+            </g>
+            <line x1="0" y1="60"  x2="14" y2="60"  stroke="#3e6485" stroke-width="2"/>
+            <line x1="0" y1="115" x2="14" y2="115" stroke="#3e6485" stroke-width="2"/>
+            <line x1="0" y1="170" x2="14" y2="170" stroke="#3e6485" stroke-width="2"/>
+            <text x="18" y="64"  font-size="10" fill="#3e6485">75%</text>
+            <text x="18" y="119" font-size="10" fill="#3e6485">50%</text>
+            <text x="18" y="174" font-size="10" fill="#3e6485">25%</text>
+            <text x="65" y="-12" text-anchor="middle" font-size="14" font-weight="700" fill="#0a2a44">WATER TANK</text>
+            <line x1="40" y1="20" x2="40" y2="200" stroke="#cc5555" stroke-width="1.5"/>
+            <line x1="90" y1="20" x2="90" y2="200" stroke="#222" stroke-width="1.5"/>
+            <text x="65" y="218" text-anchor="middle" font-size="9" fill="#3e6485">conductivity probe</text>
+          </g>
+
+          <!-- Pump motor -->
+          <path d="M 190 320 L 200 320 L 200 290 L 110 290" stroke="url(#gMetal)" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <circle cx="220" cy="290" r="36" fill="url(#gMetal)" stroke="#2a3038" stroke-width="2"/>
+          <circle cx="220" cy="290" r="28" fill="#3a424c"/>
+          <g class="impeller">
+            <circle cx="220" cy="290" r="8" fill="#cdd3dc"/>
+            <rect x="218" y="265" width="4" height="50" fill="#cdd3dc" rx="2"/>
+            <rect x="195" y="288" width="50" height="4" fill="#cdd3dc" rx="2"/>
+            <rect x="200" y="270" width="40" height="4" fill="#cdd3dc" rx="2" transform="rotate(45 220 290)"/>
+            <rect x="200" y="306" width="40" height="4" fill="#cdd3dc" rx="2" transform="rotate(45 220 290)"/>
+          </g>
+          <rect x="252" y="278" width="14" height="24" fill="#8a5a3a" stroke="#5a3820" stroke-width="1" rx="2"/>
+          <text x="220" y="345" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2a44">PUMP MOTOR</text>
+
+          <!-- Tube -->
+          <path d="M 256 290 Q 360 290 420 230 Q 480 170 590 170 L 700 170" stroke="#8a96a3" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.55"/>
+          <path d="M 256 290 Q 360 290 420 230 Q 480 170 590 170 L 700 170" stroke="#cbd4dc" stroke-width="8" fill="none" stroke-linecap="round"/>
+          <path class="tube-flow" d="M 256 290 Q 360 290 420 230 Q 480 170 590 170 L 700 170" stroke="#5fb8ff" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+          <!-- Nozzle + droplets -->
+          <g transform="translate(700,170)">
+            <rect x="-6" y="-12" width="40" height="24" fill="url(#gMetal)" rx="3"/>
+            <polygon points="34,-14 60,-6 60,6 34,14" fill="url(#gMetal)"/>
+            <polygon points="60,-6 76,-2 76,2 60,6" fill="#4a525c"/>
+            <text x="30" y="-22" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2a44">NOZZLE</text>
+            <circle class="droplet d1" cx="74" cy="10" r="3" fill="#3da3ff"/>
+            <circle class="droplet d2" cx="78" cy="10" r="3" fill="#3da3ff"/>
+            <circle class="droplet d3" cx="82" cy="10" r="3" fill="#3da3ff"/>
+            <circle class="droplet d4" cx="76" cy="10" r="3" fill="#3da3ff"/>
+            <circle class="droplet d5" cx="80" cy="10" r="3" fill="#3da3ff"/>
+          </g>
+
+          <!-- Plant pot + plant -->
+          <g transform="translate(720,260)">
+            <polygon points="0,0 160,0 145,120 15,120" fill="url(#gPot)" stroke="#7a3e22" stroke-width="2"/>
+            <rect x="-6" y="-8" width="172" height="14" fill="#a85a32" stroke="#7a3e22" stroke-width="2" rx="2"/>
+            <rect class="soil-fill" x="6" y="-2" width="148" height="14" fill="#a07654" rx="2"/>
+            <g transform="translate(80,-4)">
+              <path d="M 0 0 Q -2 -30 0 -60 Q 2 -90 0 -130" stroke="#2f7f44" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <ellipse class="leaf" cx="-20" cy="-50" rx="20" ry="10" fill="#3eb371" transform="rotate(-35 -20 -50)"/>
+              <ellipse class="leaf" cx="20" cy="-70" rx="20" ry="10" fill="#3eb371" transform="rotate(35 20 -70)"/>
+              <ellipse class="leaf" cx="-18" cy="-100" rx="18" ry="9" fill="#3eb371" transform="rotate(-30 -18 -100)"/>
+              <ellipse class="leaf" cx="18" cy="-120" rx="18" ry="9" fill="#3eb371" transform="rotate(30 18 -120)"/>
+            </g>
+            <text x="80" y="138" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2a44">PLANT</text>
+          </g>
+
+          <!-- ESP icon -->
+          <g transform="translate(370,360)">
+            <rect x="0" y="0" width="180" height="40" rx="6" fill="#1e222b" stroke="#3a4150"/>
+            <rect x="60" y="8" width="60" height="24" rx="3" fill="#0c0e13"/>
+            <text x="90" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#7cd992">ESP</text>
+            <circle cx="20" cy="20" r="3" fill="#ff9b3d"/>
+            <text x="20" y="38" text-anchor="middle" font-size="8" fill="#9aa3b2">5V</text>
+            <circle cx="160" cy="20" r="3" class="relay-led" fill="#3a4150"/>
+            <text x="160" y="38" text-anchor="middle" font-size="8" fill="#9aa3b2">PUMP</text>
+          </g>
+
+          <!-- State banner -->
+          <g transform="translate(20,20)">
+            <rect x="0" y="0" width="220" height="56" rx="10" fill="rgba(11,13,18,0.7)"/>
+            <text x="14" y="22" font-size="11" fill="#9aa3b2" font-weight="600" letter-spacing="1">CURRENT STATE</text>
+            <text x="14" y="46" id="bannerFsm" font-size="22" font-weight="700" fill="#7cd992" font-family="ui-monospace,Consolas,monospace">IDLE</text>
+            <text x="200" y="46" id="bannerMoist" text-anchor="end" font-size="13" fill="#fff" font-family="ui-monospace,Consolas,monospace">--%</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Sim controls + Live config readout -->
+      <div class="sim-controls">
+        <div class="ctrl-col">
+          <div class="ctrl-row">
+            <label>Soil moisture <b><span id="soilVal">--</span>%</b></label>
+            <input type="range" id="soilSlider" min="0" max="100" value="60">
+          </div>
+          <div class="ctrl-row">
+            <label>Tank level <b><span id="tankVal">--</span>%</b></label>
+            <input type="range" id="tankSlider" min="0" max="100" value="80">
+          </div>
+          <div class="btn-row">
+            <button id="dryBtn" class="btn small">🥵 Make dry</button>
+            <button id="refillBtn" class="btn small">🪣 Refill</button>
+          </div>
+        </div>
+        <div class="ctrl-col live-config">
+          <div class="config-title">Live config from sketch</div>
+          <table class="config-table">
+            <tbody>
+              <tr><td>Dry threshold</td><td><span id="cfgDry">—</span></td></tr>
+              <tr><td>Wet floor</td><td><span id="cfgWet">—</span></td></tr>
+              <tr><td>Burst</td><td><span id="cfgBurst">—</span></td></tr>
+              <tr><td>Soak</td><td><span id="cfgSoak">—</span></td></tr>
+              <tr><td>Cooldown</td><td><span id="cfgCool">—</span></td></tr>
+              <tr><td>Sample interval</td><td><span id="cfgSample">—</span></td></tr>
+              <tr><td>Max pumps/day</td><td><span id="cfgMax">—</span></td></tr>
+              <tr><td>Pumps today</td><td><span id="pumpsToday">0</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Output: Serial + Telegram -->
+      <div class="output-row">
+        <div class="output-panel">
+          <header>
+            <span>Serial Monitor</span>
+            <button class="link-btn" id="clearSerialBtn">clear</button>
+          </header>
+          <pre id="serialOutput" class="serial-output"></pre>
+        </div>
+        <div class="output-panel">
+          <header>
+            <span>📱 Telegram</span>
+            <button class="link-btn" id="clearTelegramBtn">clear</button>
+          </header>
+          <div id="telegramFeed" class="telegram-feed"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="default-files.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

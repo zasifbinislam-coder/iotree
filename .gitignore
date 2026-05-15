@@ -1,0 +1,18 @@
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor junk
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Node (if anyone adds tooling later)
+node_modules/
+
+# Local secrets (none expected, but just in case)
+.env
+.env.local

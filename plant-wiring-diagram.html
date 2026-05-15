@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smart Plant Communicator — Wiring &amp; Build Guide</title>
+<style>
+  :root{
+    --bg:#0f1115;
+    --panel:#171a21;
+    --panel-2:#1e222b;
+    --line:#2a2f3a;
+    --text:#e6e8ee;
+    --muted:#9aa3b2;
+    --accent:#7cd992;
+    --warn:#ffb454;
+    --danger:#ff6b6b;
+    --red:#ff5252;
+    --orange:#ff9b3d;
+    --yellow:#ffd93d;
+    --green:#7cd992;
+    --blue:#5aa9ff;
+    --purple:#c58aff;
+    --black:#1a1d24;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1200px;margin:0 auto;padding:32px 24px 80px}
+  h1{font-size:32px;margin:0 0 6px;letter-spacing:-.5px}
+  h2{font-size:22px;margin:48px 0 14px;letter-spacing:-.3px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  h3{font-size:16px;margin:18px 0 8px;color:var(--accent)}
+  p.lead{color:var(--muted);margin:0 0 8px;font-size:15px}
+  code,kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--panel-2);padding:2px 6px;border-radius:4px;font-size:.92em}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .grid{display:grid;gap:14px}
+  .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:780px){.grid.cols-2,.grid.cols-3{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;margin:6px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+  th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .pill.must{background:rgba(255,107,107,.15);color:#ff8c8c}
+  .pill.rec{background:rgba(255,180,84,.15);color:#ffc579}
+  .pill.nice{background:rgba(124,217,146,.15);color:var(--accent)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0 4px}
+  .legend span{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .swatch{display:inline-block;width:24px;height:4px;border-radius:2px}
+  ol li{margin:6px 0}
+  ol li b{color:var(--accent)}
+  .danger{color:var(--danger);font-weight:600}
+  .ok{color:var(--accent);font-weight:600}
+  .warn{color:var(--warn);font-weight:600}
+  svg{display:block;max-width:100%;height:auto;background:#0c0e13;border-radius:10px;border:1px solid var(--line)}
+  .pin-mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .footer{color:var(--muted);font-size:12.5px;margin-top:40px;text-align:center}
+  .kvs{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:14px}
+  .kvs dt{color:var(--muted)}
+  .kvs dd{margin:0}
+  hr.soft{border:none;border-top:1px solid var(--line);margin:24px 0}
+  .code-toolbar{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border-radius:8px 8px 0 0;padding:8px 14px;border:1px solid var(--line);border-bottom:none;margin-top:8px}
+  .code-filename{color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .copy-btn{background:var(--line);color:var(--text);border:none;padding:6px 14px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:600;transition:background .15s}
+  .copy-btn:hover{background:#3a4150}
+  .copy-btn.copied{background:var(--accent);color:#0c0e13}
+  .code-block{background:#0b0d12;border:1px solid var(--line);border-top:none;border-radius:0 0 8px 8px;padding:16px 18px;overflow-x:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#dde2ec;margin:0 0 4px 0;max-height:560px;overflow-y:auto}
+  .code-block code{font:inherit;background:none;padding:0;color:inherit;white-space:pre}
+  .file-links{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 4px}
+  .file-links a{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);padding:8px 14px;border-radius:8px;color:var(--accent);text-decoration:none;font-size:13.5px;font-weight:600}
+  .file-links a:hover{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Smart Plant Communicator</h1>
+<p class="lead">NodeMCU ESP8266 + analog soil sensor + relay + DC pump + Telegram alerts. Wiring guide, parts list with model numbers, and step-by-step flashing.</p>
+
+<!-- ============ PARTS LIST ============ -->
+<h2>1. Parts list with model numbers</h2>
+<div class="card">
+<table>
+  <thead><tr><th>Priority</th><th>Part</th><th>Model / spec to ask for</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill must">Must</span></td><td>Microcontroller</td><td><b>NodeMCU v1.0</b> (ESP-12E, CP2102 USB) <i>or</i> <b>NodeMCU v3 LoLin</b> (CH340)</td><td>Either works. v3 is wider and fits one breadboard rail only.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Soil sensor</td><td><b>Capacitive Soil Moisture Sensor v1.2</b> (recommended) <i>or</i> resistive <b>YL-69 + HL-38 comparator board</b></td><td>Capacitive doesn't corrode. Lasts years.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Relay module</td><td><b>1-Channel 5V Relay Module</b> with <b>SRD-05VDC-SL-C</b> relay (the standard blue one)</td><td>Most are active-LOW. Alternative: <b>IRF520N MOSFET driver module</b> (silent, no clicking).</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Water pump</td><td><b>R385 diaphragm pump</b> (6–12 V) <i>or</i> <b>Mini DC 3–6 V submersible pump</b> (~120 L/h)</td><td>Submersible: drop in reservoir. R385: external, primes faster.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Pump power</td><td><b>4×AA holder + AAs</b>, or <b>18650 cell + TP4056 + MT3608 boost</b>, or a <b>5 V / 2 A wall adapter</b> with screw terminal</td><td>Separate from NodeMCU USB. Non-negotiable.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Flyback diode</td><td><b>1N4007</b> (or 1N5819 Schottky for faster recovery)</td><td>Across the pump terminals.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Tubing</td><td><b>6 mm ID silicone</b> or PVC vinyl tubing, ~50 cm</td><td>Reservoir → pot.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>Jumper wires</td><td><b>40-pin DuPont jumpers</b>, 20 cm, female–female</td><td>Buy a mixed pack of M-M, M-F, F-F.</td></tr>
+    <tr><td><span class="pill must">Must</span></td><td>USB cable</td><td><b>Micro-USB</b> data cable</td><td>"Charge-only" cables won't flash. Check both ends carry data.</td></tr>
+    <tr><td><span class="pill rec">Strong rec.</span></td><td>Breadboard</td><td><b>MB-102 830-tie</b> half/full-size breadboard</td><td>Cleaner than direct jumpers.</td></tr>
+    <tr><td><span class="pill rec">Strong rec.</span></td><td>Water-level sensor</td><td><b>Funduino water level sensor</b> <i>or</i> just two stripped wires used as a conductivity probe</td><td>So pump never runs dry.</td></tr>
+    <tr><td><span class="pill nice">Nice</span></td><td>Air sensor</td><td><b>DHT22</b> (AM2302) or cheaper <b>DHT11</b></td><td>Temp + air humidity context.</td></tr>
+    <tr><td><span class="pill nice">Nice</span></td><td>Display</td><td><b>0.96" SSD1306 OLED, I²C, 128×64</b></td><td>Local readout. (Move pump pin off D1 if using.)</td></tr>
+    <tr><td><span class="pill nice">Nice</span></td><td>Light sensor</td><td><b>BH1750</b> (lux-accurate) or simple <b>LDR + 10 kΩ</b> divider</td><td>Plant getting enough sun?</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============ PINOUT REFERENCE ============ -->
+<h2>2. NodeMCU pinout — only the pins we use</h2>
+<div class="card">
+<p class="lead">NodeMCU silkscreen labels (<code>D1</code>, <code>A0</code>, etc.) are different from the underlying ESP8266 GPIO numbers. Use the silkscreen names in code; the Arduino core maps them for you.</p>
+<table>
+  <thead><tr><th>Silkscreen</th><th>GPIO</th><th>Used for</th><th>Why this pin</th></tr></thead>
+  <tbody>
+    <tr><td class="pin-mono"><b>3V3</b></td><td>—</td><td>Power → Soil sensor VCC</td><td>3.3 V regulated rail, ~600 mA available.</td></tr>
+    <tr><td class="pin-mono"><b>Vin</b></td><td>—</td><td>Power → Relay VCC</td><td>~5 V from USB. Relay coil needs more than 3V3.</td></tr>
+    <tr><td class="pin-mono"><b>GND</b></td><td>—</td><td>Common ground</td><td>Tie sensor GND, relay GND, and pump-PSU (−) here.</td></tr>
+    <tr><td class="pin-mono"><b>A0</b></td><td>ADC0</td><td>Soil sensor AOUT</td><td>Only analog input. Has on-board divider, safe to 3.3 V.</td></tr>
+    <tr><td class="pin-mono"><b>D1</b></td><td>GPIO5</td><td>Relay IN (pump control)</td><td>Boot-safe, no strap-pin issues. Avoid D3/D4/D8.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============ WIRING DIAGRAM ============ -->
+<h2>3. Full wiring diagram</h2>
+
+<div class="card">
+<div class="legend">
+  <span><span class="swatch" style="background:var(--red)"></span> 3V3 power</span>
+  <span><span class="swatch" style="background:var(--orange)"></span> 5V / Vin power</span>
+  <span><span class="swatch" style="background:#000;border:1px solid #555"></span> Ground (common)</span>
+  <span><span class="swatch" style="background:var(--yellow)"></span> Analog signal (A0)</span>
+  <span><span class="swatch" style="background:var(--green)"></span> Digital control (D1 → relay IN)</span>
+  <span><span class="swatch" style="background:var(--purple)"></span> Pump motor</span>
+  <span><span class="swatch" style="background:var(--blue)"></span> External pump PSU</span>
+</div>
+
+<svg viewBox="0 0 1180 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Smart plant wiring diagram">
+  <defs>
+    <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4">
+      <circle cx="4" cy="4" r="3" fill="#e6e8ee"/>
+    </marker>
+    <style>
+      .box  { fill:#1e222b; stroke:#3a4150; stroke-width:1.5; rx:10; }
+      .lbl  { fill:#e6e8ee; font:600 14px ui-monospace,Consolas,monospace; }
+      .ttl  { fill:#e6e8ee; font:700 16px -apple-system,Segoe UI,sans-serif; }
+      .sub  { fill:#9aa3b2; font:500 11px -apple-system,Segoe UI,sans-serif; }
+      .pin  { fill:#ffd93d; stroke:#1a1d24; stroke-width:1; }
+      .pinlbl { fill:#e6e8ee; font:600 11px ui-monospace,Consolas,monospace; }
+      .wire { fill:none; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+      .w-red{stroke:#ff5252}
+      .w-org{stroke:#ff9b3d}
+      .w-blk{stroke:#cfd3dc}
+      .w-ylw{stroke:#ffd93d}
+      .w-grn{stroke:#7cd992}
+      .w-pur{stroke:#c58aff}
+      .w-blu{stroke:#5aa9ff}
+      .wlbl { fill:#9aa3b2; font:600 11px ui-monospace,Consolas,monospace; }
+    </style>
+  </defs>
+
+  <!-- =================== NODEMCU =================== -->
+  <rect class="box" x="380" y="180" width="220" height="360"/>
+  <text class="ttl" x="490" y="208" text-anchor="middle">NodeMCU ESP8266</text>
+  <text class="sub" x="490" y="226" text-anchor="middle">(v1.0 / v3 LoLin)</text>
+
+  <!-- left-side pins -->
+  <circle class="pin" cx="380" cy="260" r="5"/>
+  <text class="pinlbl" x="395" y="264">3V3</text>
+  <circle class="pin" cx="380" cy="300" r="5"/>
+  <text class="pinlbl" x="395" y="304">GND</text>
+  <circle class="pin" cx="380" cy="340" r="5"/>
+  <text class="pinlbl" x="395" y="344">A0</text>
+
+  <!-- right-side pins -->
+  <circle class="pin" cx="600" cy="260" r="5"/>
+  <text class="pinlbl" x="585" y="264" text-anchor="end">Vin</text>
+  <circle class="pin" cx="600" cy="300" r="5"/>
+  <text class="pinlbl" x="585" y="304" text-anchor="end">GND</text>
+  <circle class="pin" cx="600" cy="340" r="5"/>
+  <text class="pinlbl" x="585" y="344" text-anchor="end">D1</text>
+
+  <!-- usb -->
+  <rect x="465" y="500" width="50" height="20" fill="#3a4150" stroke="#555" rx="3"/>
+  <text class="sub" x="490" y="535" text-anchor="middle">USB (PC / 5V adapter)</text>
+
+  <!-- =================== SOIL SENSOR =================== -->
+  <rect class="box" x="60" y="60" width="220" height="120"/>
+  <text class="ttl" x="170" y="88" text-anchor="middle">Soil Moisture Sensor</text>
+  <text class="sub" x="170" y="106" text-anchor="middle">Capacitive v1.2 (analog out)</text>
+
+  <circle class="pin" cx="280" cy="130" r="5"/>
+  <text class="pinlbl" x="265" y="134" text-anchor="end">VCC</text>
+  <circle class="pin" cx="280" cy="155" r="5"/>
+  <text class="pinlbl" x="265" y="159" text-anchor="end">GND</text>
+  <circle class="pin" cx="280" cy="180" r="5"/>
+  <text class="pinlbl" x="265" y="184" text-anchor="end">AOUT</text>
+
+  <!-- =================== RELAY MODULE =================== -->
+  <rect class="box" x="780" y="180" width="220" height="220"/>
+  <text class="ttl" x="890" y="208" text-anchor="middle">5V Relay Module</text>
+  <text class="sub" x="890" y="226" text-anchor="middle">SRD-05VDC-SL-C, active-LOW</text>
+
+  <!-- left side pins (control side) -->
+  <circle class="pin" cx="780" cy="260" r="5"/>
+  <text class="pinlbl" x="795" y="264">VCC</text>
+  <circle class="pin" cx="780" cy="300" r="5"/>
+  <text class="pinlbl" x="795" y="304">GND</text>
+  <circle class="pin" cx="780" cy="340" r="5"/>
+  <text class="pinlbl" x="795" y="344">IN</text>
+
+  <!-- right side screw terminals (power side) -->
+  <rect x="985" y="245" width="22" height="22" fill="#3a4150" stroke="#7cd992" rx="2"/>
+  <text class="pinlbl" x="980" y="261" text-anchor="end">COM</text>
+  <rect x="985" y="275" width="22" height="22" fill="#3a4150" stroke="#7cd992" rx="2"/>
+  <text class="pinlbl" x="980" y="291" text-anchor="end">NO</text>
+  <rect x="985" y="305" width="22" height="22" fill="#3a4150" stroke="#555" rx="2"/>
+  <text class="pinlbl" x="980" y="321" text-anchor="end">NC</text>
+
+  <!-- =================== PUMP =================== -->
+  <rect class="box" x="780" y="470" width="220" height="120"/>
+  <text class="ttl" x="890" y="498" text-anchor="middle">DC Water Pump</text>
+  <text class="sub" x="890" y="516" text-anchor="middle">3–6V submersible / R385</text>
+  <circle class="pin" cx="780" cy="550" r="5"/>
+  <text class="pinlbl" x="795" y="554">+</text>
+  <circle class="pin" cx="780" cy="580" r="5"/>
+  <text class="pinlbl" x="795" y="584">−</text>
+
+  <!-- Flyback diode -->
+  <g transform="translate(700,540)">
+    <polygon points="0,10 18,0 18,20" fill="#ffd93d" stroke="#1a1d24"/>
+    <rect x="18" y="-2" width="3" height="24" fill="#ffd93d"/>
+    <line x1="-20" y1="10" x2="0" y2="10" stroke="#cfd3dc" stroke-width="2"/>
+    <line x1="21" y1="10" x2="40" y2="10" stroke="#cfd3dc" stroke-width="2"/>
+    <text class="sub" x="10" y="38" text-anchor="middle">1N4007 flyback</text>
+    <text class="sub" x="10" y="50" text-anchor="middle">stripe → pump (+)</text>
+  </g>
+
+  <!-- =================== EXTERNAL PSU =================== -->
+  <rect class="box" x="380" y="600" width="220" height="80"/>
+  <text class="ttl" x="490" y="628" text-anchor="middle">External Pump PSU</text>
+  <text class="sub" x="490" y="644" text-anchor="middle">4×AA / 5V 2A adapter / 18650+boost</text>
+  <circle class="pin" cx="600" cy="660" r="5"/>
+  <text class="pinlbl" x="585" y="664" text-anchor="end">+</text>
+  <circle class="pin" cx="380" cy="660" r="5"/>
+  <text class="pinlbl" x="395" y="664">−</text>
+
+  <!-- ============= WIRES ============= -->
+
+  <!-- Sensor VCC -> 3V3 (RED) -->
+  <path class="wire w-red" d="M 280 130 L 340 130 L 340 260 L 380 260"/>
+  <text class="wlbl" x="345" y="124">3V3</text>
+
+  <!-- Sensor GND -> NodeMCU GND left (BLK) -->
+  <path class="wire w-blk" d="M 280 155 L 330 155 L 330 300 L 380 300"/>
+  <text class="wlbl" x="335" y="149">GND</text>
+
+  <!-- Sensor AOUT -> A0 (YELLOW) -->
+  <path class="wire w-ylw" d="M 280 180 L 320 180 L 320 340 L 380 340"/>
+  <text class="wlbl" x="325" y="174">A0</text>
+
+  <!-- NodeMCU Vin -> Relay VCC (ORANGE) -->
+  <path class="wire w-org" d="M 600 260 L 780 260"/>
+  <text class="wlbl" x="690" y="252" text-anchor="middle">5V</text>
+
+  <!-- NodeMCU GND (right) -> Relay GND (BLK) -->
+  <path class="wire w-blk" d="M 600 300 L 780 300"/>
+  <text class="wlbl" x="690" y="292" text-anchor="middle">GND</text>
+
+  <!-- NodeMCU D1 -> Relay IN (GREEN) -->
+  <path class="wire w-grn" d="M 600 340 L 780 340"/>
+  <text class="wlbl" x="690" y="332" text-anchor="middle">D1 → IN</text>
+
+  <!-- Relay COM -> Pump (+)  (PURPLE) -->
+  <path class="wire w-pur" d="M 996 267 L 1060 267 L 1060 480 L 760 480 L 760 550 L 780 550"/>
+  <text class="wlbl" x="1068" y="380" >to Pump(+)</text>
+
+  <!-- Pump (-) -> External PSU (-) (PURPLE then BLUE) -->
+  <path class="wire w-pur" d="M 780 580 L 680 580 L 680 660 L 600 660"/>
+
+  <!-- External PSU (+) -> Relay NO  (BLUE) -->
+  <path class="wire w-blu" d="M 600 660 L 600 660" />
+  <!-- the actual + line: PSU(+) (right pin) -> NO terminal -->
+  <path class="wire w-blu" d="M 600 660 L 1090 660 L 1090 286 L 996 286"/>
+  <text class="wlbl" x="1095" y="500" >PSU(+) → NO</text>
+
+  <!-- NodeMCU GND (left) -> External PSU (-) common ground (BLK dashed) -->
+  <path class="wire w-blk" d="M 380 300 L 360 300 L 360 660 L 380 660" stroke-dasharray="2 6"/>
+  <text class="wlbl" x="320" y="480">common GND</text>
+
+  <!-- Title row -->
+  <text class="ttl" x="20" y="30">Wiring diagram (top-down view)</text>
+  <text class="sub" x="20" y="48">Wires follow electrical convention: red = power, black = ground, yellow = signal.</text>
+</svg>
+
+<p class="lead" style="margin-top:14px"><b class="warn">Important:</b> the dashed black line is the <b>common ground</b> between NodeMCU GND and the external pump PSU's negative terminal. Without it, the relay's control side and the pump's power side don't share a reference and the circuit will misbehave.</p>
+</div>
+
+<!-- ============ CONNECTION TABLE ============ -->
+<h2>4. Wire-by-wire checklist</h2>
+<div class="card">
+<p class="lead">Tick each row off as you wire. 11 connections total.</p>
+<table>
+  <thead><tr><th>#</th><th>From</th><th>To</th><th>Wire colour</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Soil sensor <code>VCC</code></td><td>NodeMCU <code>3V3</code></td><td><span class="swatch" style="background:var(--red)"></span> Red</td><td>Sensor power</td></tr>
+    <tr><td>2</td><td>Soil sensor <code>GND</code></td><td>NodeMCU <code>GND</code></td><td><span class="swatch" style="background:#cfd3dc"></span> Black</td><td>Sensor ground</td></tr>
+    <tr><td>3</td><td>Soil sensor <code>AOUT</code></td><td>NodeMCU <code>A0</code></td><td><span class="swatch" style="background:var(--yellow)"></span> Yellow</td><td>Analog reading</td></tr>
+    <tr><td>4</td><td>Relay <code>VCC</code></td><td>NodeMCU <code>Vin</code></td><td><span class="swatch" style="background:var(--orange)"></span> Orange</td><td>Relay coil power (5 V)</td></tr>
+    <tr><td>5</td><td>Relay <code>GND</code></td><td>NodeMCU <code>GND</code></td><td><span class="swatch" style="background:#cfd3dc"></span> Black</td><td>Relay ground</td></tr>
+    <tr><td>6</td><td>Relay <code>IN</code></td><td>NodeMCU <code>D1</code></td><td><span class="swatch" style="background:var(--green)"></span> Green</td><td>Relay control signal</td></tr>
+    <tr><td>7</td><td>External PSU <code>(+)</code></td><td>Relay <code>NO</code> (Normally Open)</td><td><span class="swatch" style="background:var(--blue)"></span> Blue</td><td>Pump power, switched side</td></tr>
+    <tr><td>8</td><td>Relay <code>COM</code></td><td>Pump <code>(+)</code></td><td><span class="swatch" style="background:var(--purple)"></span> Purple</td><td>Switched output to motor</td></tr>
+    <tr><td>9</td><td>Pump <code>(−)</code></td><td>External PSU <code>(−)</code></td><td><span class="swatch" style="background:var(--purple)"></span> Purple</td><td>Motor return</td></tr>
+    <tr><td>10</td><td>External PSU <code>(−)</code></td><td>NodeMCU <code>GND</code></td><td><span class="swatch" style="background:#cfd3dc"></span> Black</td><td><b class="warn">COMMON GROUND</b> — do not skip</td></tr>
+    <tr><td>11</td><td>1N4007 <b>stripe end</b> → Pump <code>(+)</code></td><td>1N4007 plain end → Pump <code>(−)</code></td><td><span class="swatch" style="background:var(--yellow)"></span> —</td><td>Flyback protection</td></tr>
+  </tbody>
+</table>
+
+<p class="lead" style="margin-top:14px"><b class="ok">Sanity check before powering on:</b></p>
+<ol>
+  <li>Multimeter on continuity mode → buzz between NodeMCU <code>GND</code> and pump PSU <code>(−)</code>. If no buzz, common-ground wire is missing.</li>
+  <li>Pump <code>(+)</code> should <b>not</b> have continuity to PSU <code>(+)</code> when the relay is idle — only when D1 is asserted.</li>
+  <li>1N4007 stripe (cathode) is on the <b>positive</b> side of the pump. Backwards = diode short = burnt diode.</li>
+</ol>
+</div>
+
+<!-- ============ FLASHING ============ -->
+<h2>5. How to flash the code</h2>
+
+<div class="card">
+<h3>Step 1 — Install drivers (one-time)</h3>
+<p>Windows usually auto-detects, but if Device Manager doesn't show a new COM port when you plug the NodeMCU in:</p>
+<ul>
+  <li><b>NodeMCU v1.0 (Amica)</b> uses the <b>CP2102</b> USB-serial chip → install <i>Silicon Labs CP210x VCP driver</i>.</li>
+  <li><b>NodeMCU v3 (LoLin)</b> uses the <b>CH340/CH341</b> chip → install the <i>CH340 driver</i>.</li>
+</ul>
+<p class="lead">After install, plug the board in and check Windows <kbd>Device Manager → Ports (COM &amp; LPT)</kbd> — you'll see something like <code>USB-SERIAL CH340 (COM5)</code>. Note the COM number.</p>
+</div>
+
+<div class="card">
+<h3>Step 2 — Install Arduino IDE + ESP8266 board package</h3>
+<ol>
+  <li>Install <b>Arduino IDE 2.x</b> from arduino.cc (or 1.8.19 if you prefer).</li>
+  <li>Open <kbd>File → Preferences</kbd>. In <b>Additional Boards Manager URLs</b>, paste:<br>
+    <code>http://arduino.esp8266.com/stable/package_esp8266com_index.json</code></li>
+  <li>Open <kbd>Tools → Board → Boards Manager</kbd>, search <b>esp8266</b>, install <i>"esp8266" by ESP8266 Community</i>.</li>
+  <li>Select <kbd>Tools → Board → ESP8266 Boards → NodeMCU 1.0 (ESP-12E Module)</kbd>.</li>
+  <li>Set <kbd>Tools → Upload Speed → 115200</kbd>, <kbd>CPU Frequency → 80 MHz</kbd>, <kbd>Flash Size → 4MB (FS:2MB OTA:~1019KB)</kbd>.</li>
+  <li>Set <kbd>Tools → Port</kbd> to the COM number from Step 1.</li>
+</ol>
+</div>
+
+<div class="card">
+<h3>Step 3 — Install libraries</h3>
+<p>Open <kbd>Tools → Manage Libraries</kbd> and install:</p>
+<ul>
+  <li><b>Universal Telegram Bot</b> by Brian Lough — latest.</li>
+  <li><b>ArduinoJson</b> by Benoit Blanchon — <b class="warn">pin to version 6.x</b>. v7 is not yet compatible with the Telegram library.</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>Step 4 — Paste, edit, upload</h3>
+<ol>
+  <li>Open the sketch from the previous step (the auto-watering version).</li>
+  <li>Edit the four config strings at the top: <code>WIFI_SSID</code>, <code>WIFI_PASSWORD</code>, <code>BOT_TOKEN</code>, <code>CHAT_ID</code>.</li>
+  <li>Click the <b>tick (✓)</b> icon to verify it compiles.</li>
+  <li>Click the <b>arrow (→)</b> icon to upload. You'll see <code>Connecting...</code> then a progress bar.</li>
+  <li><b class="ok">No buttons to press.</b> The NodeMCU's USB-serial chip auto-enters flash mode via DTR/RTS. If upload fails with <code>espcomm_open failed</code>, close any other program holding the COM port (PuTTY, Serial Monitor on another window).</li>
+</ol>
+</div>
+
+<div class="card">
+<h3>Step 5 — Watch it run</h3>
+<ol>
+  <li>Open <kbd>Tools → Serial Monitor</kbd>, set baud rate <b>115200</b>.</li>
+  <li>You should see <code>Wi-Fi....OK, IP=192.168.x.y</code> then a moisture line every 60 s.</li>
+  <li><b>Bench test:</b> hold the probe in air. Within a minute, the relay should click and the pump should run for 5 s. Telegram should ping you afterwards.</li>
+  <li><b>Then plant it.</b> Probe into the soil, tube end into the pot, pump body sitting in a glass/bottle of water.</li>
+</ol>
+</div>
+
+<!-- ============ FULL SOURCE CODE ============ -->
+<h2>6. The full Arduino sketch</h2>
+<div class="card">
+<p class="lead">Two ready-to-open <code>.ino</code> files have been written next to this guide. Open either folder directly in Arduino IDE.</p>
+
+<div class="file-links">
+  <a href="plant_communicator/plant_communicator.ino" target="_blank">plant_communicator.ino <span style="color:var(--muted);font-weight:400">— real hardware</span></a>
+  <a href="wokwi/sketch.ino" target="_blank">wokwi/sketch.ino <span style="color:var(--muted);font-weight:400">— simulator variant</span></a>
+</div>
+
+<div class="code-toolbar">
+  <span class="code-filename">plant_communicator.ino</span>
+  <button id="copyBtn" class="copy-btn" onclick="copyInoCode()">Copy code</button>
+</div>
+<pre class="code-block"><code id="ino-display"></code></pre>
+
+<script type="text/plain" id="ino-src">
+// Smart Plant Communicator
+// NodeMCU ESP8266 + analog soil sensor + relay + DC pump + Telegram
+
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+
+// ---------- USER CONFIG ----------
+const char* WIFI_SSID     = "YOUR_WIFI_NAME";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+
+const char* BOT_TOKEN = "PASTE_BOT_TOKEN_HERE";
+const char* CHAT_ID   = "PASTE_CHAT_ID_HERE";
+
+// Moisture calibration (see calibration steps in the wiring guide)
+const int DRY_THRESHOLD = 800;   // raw >= this  -> dry
+const int WET_FLOOR     = 400;   // raw <= this  -> 100% in display
+
+// Pump wiring + behaviour
+const uint8_t PUMP_PIN         = D1;        // GPIO5
+const bool    PUMP_ACTIVE_LOW  = true;      // set false if your relay is active-HIGH
+
+const unsigned long PUMP_BURST_MS    = 5UL * 1000UL;             // 5 s burst
+const unsigned long SOAK_WAIT_MS     = 30UL * 1000UL;            // 30 s soak before re-check
+const unsigned long PUMP_COOLDOWN_MS = 60UL * 60UL * 1000UL;     // min 1 h between bursts
+const uint8_t       MAX_PUMPS_PER_DAY = 6;
+
+// Sampling
+const unsigned long SAMPLE_INTERVAL_MS = 60UL * 1000UL;          // read every 60 s
+// ---------------------------------
+
+WiFiClientSecure secured_client;
+UniversalTelegramBot bot(BOT_TOKEN, secured_client);
+
+enum State { IDLE, PUMPING, SOAKING };
+State state = IDLE;
+
+unsigned long lastSampleAt    = 0;
+unsigned long pumpStartedAt   = 0;
+unsigned long soakStartedAt   = 0;
+unsigned long lastPumpAt      = 0;
+unsigned long dayWindowStart  = 0;
+uint8_t       pumpsThisWindow = 0;
+
+void pumpOn()  { digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? LOW  : HIGH); }
+void pumpOff() { digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? HIGH : LOW ); }
+
+void connectWifi() {
+  Serial.print("Wi-Fi");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.print(" OK, IP="); Serial.println(WiFi.localIP());
+}
+
+int readMoistureRaw() {
+  long sum = 0;
+  for (int i = 0; i < 8; i++) { sum += analogRead(A0); delay(20); }
+  return (int)(sum / 8);
+}
+
+int rawToPercent(int raw) {
+  if (raw <= WET_FLOOR)     return 100;
+  if (raw >= DRY_THRESHOLD) return 0;
+  long pct = map(raw, WET_FLOOR, DRY_THRESHOLD, 100, 0);
+  return constrain((int)pct, 0, 100);
+}
+
+void sendTelegram(const String& msg) {
+  if (!bot.sendMessage(CHAT_ID, msg, "")) Serial.println("TG send failed");
+}
+
+void resetDailyWindowIfNeeded(unsigned long now) {
+  const unsigned long DAY = 24UL * 60UL * 60UL * 1000UL;
+  if (now - dayWindowStart >= DAY) {
+    dayWindowStart  = now;
+    pumpsThisWindow = 0;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  // Pre-set the de-asserted level BEFORE pinMode, so the pump never blips on boot.
+  digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? HIGH : LOW);
+  pinMode(PUMP_PIN, OUTPUT);
+  pumpOff();
+
+  pinMode(A0, INPUT);
+
+  connectWifi();
+  secured_client.setInsecure();   // Telegram HTTPS; simplest path
+
+  dayWindowStart = millis();
+  Serial.println("Plant agent online.");
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) connectWifi();
+
+  unsigned long now = millis();
+  resetDailyWindowIfNeeded(now);
+
+  switch (state) {
+
+    case IDLE: {
+      if (lastSampleAt != 0 && (now - lastSampleAt) < SAMPLE_INTERVAL_MS) break;
+      lastSampleAt = now;
+
+      int raw = readMoistureRaw();
+      int pct = rawToPercent(raw);
+      Serial.printf("raw=%d  pct=%d%%\n", raw, pct);
+
+      bool isDry        = (raw >= DRY_THRESHOLD);
+      bool cooldownOver = (lastPumpAt == 0) || ((now - lastPumpAt) >= PUMP_COOLDOWN_MS);
+      bool quotaLeft    = (pumpsThisWindow < MAX_PUMPS_PER_DAY);
+
+      if (isDry && cooldownOver && quotaLeft) {
+        Serial.println("DRY -> pumping");
+        pumpOn();
+        pumpStartedAt = now;
+        state = PUMPING;
+      }
+      else if (isDry && !quotaLeft && cooldownOver) {
+        sendTelegram("Soil still dry but I've hit my daily watering limit. "
+                     "Reservoir likely empty - please refill! (" + String(pct) + "%)");
+        lastPumpAt = now;
+      }
+      break;
+    }
+
+    case PUMPING: {
+      if ((now - pumpStartedAt) >= PUMP_BURST_MS) {
+        pumpOff();
+        Serial.println("burst done -> soaking");
+        soakStartedAt = now;
+        state = SOAKING;
+      }
+      break;
+    }
+
+    case SOAKING: {
+      if ((now - soakStartedAt) >= SOAK_WAIT_MS) {
+        int raw = readMoistureRaw();
+        int pct = rawToPercent(raw);
+        Serial.printf("post-soak raw=%d pct=%d%%\n", raw, pct);
+
+        lastPumpAt = now;
+        pumpsThisWindow++;
+
+        if (raw >= DRY_THRESHOLD) {
+          sendTelegram("I tried to water myself but the soil is still dry ("
+                       + String(pct) + "%). Please check the water tank!");
+        } else {
+          sendTelegram("I was thirsty so I watered myself. "
+                       "Moisture now " + String(pct) + "%.");
+        }
+        state = IDLE;
+        lastSampleAt = now;
+      }
+      break;
+    }
+  }
+
+  delay(50);
+}
+</script>
+</div>
+
+<!-- ============ WOKWI SIMULATOR ============ -->
+<h2>7. Test it online — no hardware needed</h2>
+<div class="card">
+<p class="lead">You can run the entire firmware in your browser using <a href="https://wokwi.com" target="_blank" rel="noopener" style="color:var(--accent)">Wokwi</a>, a free ESP8266 simulator. Wokwi's virtual Wi-Fi reaches the real internet, so the simulated NodeMCU will send <b>real Telegram messages to your phone</b>. Drag a slider to simulate dry soil; watch the relay click on; see the alert arrive.</p>
+
+<h3>What's already prepared for you</h3>
+<p class="lead">Wokwi has heavily pivoted to <b>ESP32</b>-first since 2024. Their ESP8266 (Wemos D1 Mini) support still works but is less polished. Two sets of files are ready — <b>try the ESP32 path first</b>, fall back to ESP8266 only if needed. The production firmware that flashes onto your real NodeMCU is unchanged either way.</p>
+<table>
+  <thead><tr><th>Variant</th><th>Files</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>A — ESP32 (recommended)</b></td>
+      <td><a href="wokwi/diagram_esp32.json" target="_blank">diagram_esp32.json</a>, <a href="wokwi/sketch_esp32.ino" target="_blank">sketch_esp32.ino</a></td>
+      <td><span class="ok">Most reliable on Wokwi today</span></td>
+    </tr>
+    <tr>
+      <td>B — ESP8266 (fallback)</td>
+      <td><a href="wokwi/diagram.json" target="_blank">diagram.json</a>, <a href="wokwi/sketch.ino" target="_blank">sketch.ino</a></td>
+      <td>Works but less stable in Wokwi</td>
+    </tr>
+  </tbody>
+</table>
+<p class="lead" style="margin-top:6px"><b class="warn">Important:</b> the ESP32 variant is for simulation ONLY. Your physical hardware is an ESP8266 NodeMCU, so the production sketch (<code>plant_communicator.ino</code>) stays as-is. The simulation is just to validate the logic before you wire anything up.</p>
+
+<h3>Launch in 6 clicks — Option A (ESP32, recommended)</h3>
+<ol>
+  <li>Open this direct link: <a href="https://wokwi.com/projects/new/esp32" target="_blank" rel="noopener" style="color:var(--accent)">wokwi.com/projects/new/esp32</a>. A blank ESP32 DevKit will appear with two tabs at the top: <code>sketch.ino</code> and <code>diagram.json</code>.</li>
+  <li>Copy the contents of <a href="wokwi/diagram_esp32.json" target="_blank">wokwi/diagram_esp32.json</a> into Wokwi's <code>diagram.json</code> tab, replacing the default.</li>
+  <li>Copy the contents of <a href="wokwi/sketch_esp32.ino" target="_blank">wokwi/sketch_esp32.ino</a> into Wokwi's <code>sketch.ino</code> tab.</li>
+  <li>Click the <b>Library Manager</b> icon in the left sidebar → add <b>UniversalTelegramBot</b> and <b>ArduinoJson</b> (pick version 6.21.x).</li>
+  <li>In the sketch, edit the <code>BOT_TOKEN</code> and <code>CHAT_ID</code> lines. (SSID is already set to <code>Wokwi-GUEST</code>.)</li>
+  <li>Click the green <b>▶ Play</b> button. Serial Monitor will show <code>Wi-Fi OK</code> then sensor readings every 5 seconds.</li>
+</ol>
+
+<h3>Option B fallback — ESP8266 / Wemos D1 Mini</h3>
+<p class="lead">Only if Option A doesn't load for some reason. Direct link: <a href="https://wokwi.com/projects/new/wemos-d1-mini" target="_blank" rel="noopener" style="color:var(--accent)">wokwi.com/projects/new/wemos-d1-mini</a>. Then paste <code>wokwi/diagram.json</code> and <code>wokwi/sketch.ino</code> (the non-<code>_esp32</code> files) instead. Same library add and bot token edit as above.</p>
+
+<h3>What to do once it's running</h3>
+<ul>
+  <li><b>Drag the soil sensor's slider toward "DRY"</b> (raw value rises past 700). Within ~5 seconds you'll see <code>DRY -&gt; pumping</code> in the Serial Monitor, and the relay module's LED will light up — that's the moment the real pump would turn on.</li>
+  <li>After 3 seconds the burst ends; after 8 more seconds (soak), the sketch re-reads the sensor.</li>
+  <li>If you slid the slider back toward wet during the soak, you'll get the success message on Telegram: <i>"I was thirsty so I watered myself…"</i></li>
+  <li>If you kept it dry, you'll get the SOS alert: <i>"Tried to water but still dry. Check the tank!"</i></li>
+</ul>
+
+<p class="lead" style="margin-top:14px"><b class="ok">Once the simulation behaves correctly, flash <code>plant_communicator.ino</code> (the production sketch — longer real-world timings) onto your physical NodeMCU.</b> The logic is identical.</p>
+</div>
+
+<!-- ============ TROUBLESHOOTING ============ -->
+<h2>8. If something doesn't work</h2>
+<div class="card">
+<dl class="kvs">
+  <dt><span class="danger">Upload error <code>espcomm_open failed</code></span></dt>
+  <dd>Wrong COM port, or the Serial Monitor on another Arduino window is holding it. Close it, re-select COM, retry.</dd>
+
+  <dt><span class="danger">Board not detected at all</span></dt>
+  <dd>Wrong cable (charge-only). Try a different Micro-USB cable, ideally one you know carries data.</dd>
+
+  <dt><span class="danger">Pump runs at boot for a moment</span></dt>
+  <dd>You have an active-HIGH relay. Set <code>PUMP_ACTIVE_LOW = false</code> in the sketch and re-flash.</dd>
+
+  <dt><span class="danger">Pump never runs, but Serial shows "DRY -> pumping"</span></dt>
+  <dd>(a) No common ground between PSU and NodeMCU. (b) External PSU is dead or wired backwards into NO. Multimeter the NO terminal voltage with relay engaged — should read full PSU voltage.</dd>
+
+  <dt><span class="danger">NodeMCU resets when pump starts</span></dt>
+  <dd>You're sharing the NodeMCU's USB rail with the pump. Don't. Move the pump onto its own PSU.</dd>
+
+  <dt><span class="danger">Telegram never receives anything</span></dt>
+  <dd>(a) You forgot to send the bot a message first — bots can't initiate chats. (b) Wrong <code>CHAT_ID</code>. Visit <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> after messaging the bot and copy the <code>id</code>.</dd>
+
+  <dt><span class="danger">Sensor reads constant 0 or 1023</span></dt>
+  <dd>Loose AOUT wire, or sensor not powered. Multimeter the 3.3 V rail at the sensor's VCC pin.</dd>
+</dl>
+</div>
+
+<hr class="soft">
+<p class="footer">Built for Sir. Print this page or open it on your phone while you wire — it'll print cleanly to A4.</p>
+
+</div>
+
+<script>
+(function(){
+  var src = document.getElementById('ino-src');
+  var disp = document.getElementById('ino-display');
+  if (src && disp) {
+    // strip the single leading newline that comes from the script-tag formatting
+    var t = src.textContent;
+    if (t.charAt(0) === '\n') t = t.slice(1);
+    disp.textContent = t;
+  }
+})();
+function copyInoCode(){
+  var t = document.getElementById('ino-display').textContent;
+  navigator.clipboard.writeText(t).then(function(){
+    var b = document.getElementById('copyBtn');
+    var orig = b.textContent;
+    b.textContent = 'Copied!';
+    b.classList.add('copied');
+    setTimeout(function(){
+      b.textContent = orig;
+      b.classList.remove('copied');
+    }, 1500);
+  }).catch(function(){
+    alert('Copy failed - select the code manually with Ctrl+A inside the block.');
+  });
+}
+</script>
+</body>
+</html>

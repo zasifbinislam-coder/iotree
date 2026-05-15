@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smart Plant Simulator — live process view</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --line:#2a2f3a;
+    --text:#e6e8ee; --muted:#9aa3b2;
+    --accent:#7cd992; --warn:#ffb454; --danger:#ff6b6b; --blue:#5aa9ff;
+    --sky-1:#a3d8f4; --sky-2:#e5f3fb;
+    --water:#3da3ff; --water-deep:#1e6fc8;
+    --soil-dry:#a07654; --soil-wet:#4d3220;
+    --pot:#c36f47;
+    --leaf:#3eb371; --leaf-dry:#a8b96a;
+    --stem:#2f7f44;
+    --metal:#7c8590; --metal-dark:#4a525c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  header{margin-bottom:14px}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.3px}
+  header p{margin:0;color:var(--muted);font-size:13.5px}
+
+  .scene-wrap{background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 75%, #d6e9d6 100%);border-radius:16px;overflow:hidden;border:1px solid var(--line);position:relative}
+  .scene{display:block;width:100%;height:auto}
+
+  .dashboard{display:grid;grid-template-columns:1.1fr 1fr 1.2fr;gap:14px;margin-top:14px}
+  @media(max-width:980px){.dashboard{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:13.5px;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+
+  .ctrl-row{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .ctrl-row label{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .ctrl-row label b{color:var(--text);font-family:ui-monospace,Consolas,monospace}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .btn-row{display:flex;gap:8px;margin-top:10px}
+  button{background:var(--line);color:var(--text);border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;flex:1;transition:background .15s}
+  button:hover{background:#3a4150}
+  button.primary{background:var(--accent);color:#0c0e13}
+  button.primary:hover{background:#9be4af}
+
+  .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px}
+  .status-grid div{display:flex;justify-content:space-between;padding:6px 8px;background:var(--panel-2);border-radius:6px}
+  .status-grid div span:last-child{font-family:ui-monospace,Consolas,monospace;color:var(--accent);font-weight:600}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:.04em}
+  .pill.idle{background:rgba(154,163,178,.25);color:var(--muted)}
+  .pill.pumping{background:rgba(58,168,255,.25);color:var(--blue)}
+  .pill.soaking{background:rgba(255,180,84,.25);color:var(--warn)}
+
+  .phone{display:flex;flex-direction:column}
+  .phone-frame{background:#0b0d12;border:1px solid var(--line);border-radius:14px;padding:10px;flex:1;min-height:230px;max-height:300px;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:8px}
+  .msg{background:var(--panel-2);border-left:3px solid var(--blue);padding:8px 10px;border-radius:6px;font-size:12.5px;animation:slideIn .35s ease}
+  .msg.warn{border-left-color:var(--warn)}
+  .msg.ok{border-left-color:var(--accent)}
+  .msg .when{display:block;color:var(--muted);font-size:10.5px;margin-bottom:2px;font-family:ui-monospace,Consolas,monospace}
+  @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+  /* ===== SCENE ANIMATIONS ===== */
+  .impeller{transform-origin:130px 290px;transition:filter .2s}
+  .scene.pumping .impeller{animation:spin .35s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .tube-flow{stroke-dasharray:14 10;stroke-dashoffset:0;opacity:0;transition:opacity .25s}
+  .scene.pumping .tube-flow{opacity:1;animation:flow 1s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-48}}
+
+  .droplet{opacity:0}
+  .scene.pumping .droplet{animation:fall 1s linear infinite}
+  .scene.pumping .d2{animation-delay:.2s}
+  .scene.pumping .d3{animation-delay:.4s}
+  .scene.pumping .d4{animation-delay:.6s}
+  .scene.pumping .d5{animation-delay:.8s}
+  @keyframes fall{
+    0%{opacity:0;transform:translateY(0) scale(.8)}
+    20%{opacity:1}
+    100%{opacity:0;transform:translateY(80px) scale(1)}
+  }
+
+  .tank-water,.soil-fill,.leaf{transition:all .8s ease}
+  .leaf{transform-origin:bottom center;transform-box:fill-box}
+  .leaf-droopy{transform:rotate(40deg) translateY(2px)}
+  .leaf-droopy-r{transform:rotate(-40deg) translateY(2px)}
+
+  .wave path{animation:wave 3.5s ease-in-out infinite}
+  @keyframes wave{0%,100%{transform:translateX(0)}50%{transform:translateX(-12px)}}
+
+  .relay-led{transition:fill .15s}
+  .scene.pumping .relay-led{fill:#ff5252;filter:drop-shadow(0 0 6px #ff5252)}
+
+  /* legend */
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+  .legend kbd{font-family:inherit;background:var(--panel-2);padding:1px 6px;border-radius:4px;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>🌱 Smart Plant — live process view</h1>
+  <p>The same state machine that runs on your NodeMCU. Drag the soil moisture slider down to simulate thirsty soil; toggle the tank level to test the empty-reservoir path. Watch the pump spin, water flow, droplets fall, and the plant perk up.</p>
+</header>
+
+<div class="scene-wrap">
+<svg viewBox="0 0 1000 460" class="scene" id="scene">
+  <defs>
+    <linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5fb8ff"/>
+      <stop offset="100%" stop-color="#1e6fc8"/>
+    </linearGradient>
+    <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a3acb6"/>
+      <stop offset="100%" stop-color="#525a64"/>
+    </linearGradient>
+    <linearGradient id="gPot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d77e54"/>
+      <stop offset="100%" stop-color="#9c5430"/>
+    </linearGradient>
+    <radialGradient id="gSun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#ffe478"/>
+      <stop offset="100%" stop-color="#ffb338" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Sun -->
+  <circle cx="900" cy="60" r="42" fill="url(#gSun)"/>
+  <circle cx="900" cy="60" r="22" fill="#ffd34d"/>
+
+  <!-- Ground -->
+  <rect x="0" y="400" width="1000" height="60" fill="#82a86c"/>
+  <rect x="0" y="395" width="1000" height="8" fill="#6d9456"/>
+
+  <!-- ===== WATER TANK ===== -->
+  <g id="tank" transform="translate(60,140)">
+    <!-- tank back glow -->
+    <rect x="-4" y="-4" width="138" height="238" rx="10" fill="rgba(255,255,255,0.18)"/>
+    <!-- tank body (glass) -->
+    <rect x="0" y="0" width="130" height="230" rx="8" fill="rgba(200,230,255,0.22)" stroke="#7aa3c4" stroke-width="2"/>
+    <!-- water (height + y are animated by JS) -->
+    <g class="wave">
+      <rect class="tank-water" x="3" y="30" width="124" height="197" fill="url(#gWater)" rx="4"/>
+    </g>
+    <!-- markings -->
+    <line x1="0" y1="60"  x2="14" y2="60"  stroke="#3e6485" stroke-width="2"/>
+    <line x1="0" y1="115" x2="14" y2="115" stroke="#3e6485" stroke-width="2"/>
+    <line x1="0" y1="170" x2="14" y2="170" stroke="#3e6485" stroke-width="2"/>
+    <text x="18" y="64"  font-size="10" fill="#3e6485">75%</text>
+    <text x="18" y="119" fill="#3e6485" font-size="10">50%</text>
+    <text x="18" y="174" fill="#3e6485" font-size="10">25%</text>
+    <!-- label -->
+    <text x="65" y="-12" text-anchor="middle" font-size="14" font-weight="700" fill="#0a2a44">WATER TANK</text>
+
+    <!-- two-wire level probe inside tank -->
+    <line x1="40" y1="20" x2="40" y2="200" stroke="#cc5555" stroke-width="1.5"/>
+    <line x1="90" y1="20" x2="90" y2="200" stroke="#222"     stroke-width="1.5"/>
+    <text x="65" y="218" text-anchor="middle" font-size="9" fill="#3e6485">conductivity probe</text>
+  </g>
+
+  <!-- ===== PUMP MOTOR ===== -->
+  <g id="pump" transform="translate(0,0)">
+    <!-- pipe from tank to pump -->
+    <path d="M 190 320 L 200 320 L 200 290 L 110 290" stroke="url(#gMetal)" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <!-- pump housing -->
+    <circle cx="220" cy="290" r="36" fill="url(#gMetal)" stroke="#2a3038" stroke-width="2"/>
+    <circle cx="220" cy="290" r="28" fill="#3a424c"/>
+    <!-- impeller (spins when pumping) -->
+    <g class="impeller">
+      <circle cx="220" cy="290" r="8" fill="#cdd3dc"/>
+      <rect x="218" y="265" width="4" height="50" fill="#cdd3dc" rx="2"/>
+      <rect x="195" y="288" width="50" height="4" fill="#cdd3dc" rx="2"/>
+      <rect x="200" y="270" width="40" height="4" fill="#cdd3dc" rx="2" transform="rotate(45 220 290)"/>
+      <rect x="200" y="306" width="40" height="4" fill="#cdd3dc" rx="2" transform="rotate(45 220 290)"/>
+    </g>
+    <!-- motor coil hint -->
+    <rect x="252" y="278" width="14" height="24" fill="#8a5a3a" stroke="#5a3820" stroke-width="1" rx="2"/>
+    <text x="220" y="345" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2a44">PUMP MOTOR</text>
+  </g>
+
+  <!-- ===== TUBE (pump -> nozzle) ===== -->
+  <path id="tube" d="M 256 290 Q 360 290 420 230 Q 480 170 590 170 L 700 170"
+        stroke="#8a96a3" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.55"/>
+  <path id="tubeInner" d="M 256 290 Q 360 290 420 230 Q 480 170 590 170 L 700 170"
+        stroke="#cbd4dc" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <!-- animated flow inside tube -->
+  <path class="tube-flow" d="M 256 290 Q 360 290 420 230 Q 480 170 590 170 L 700 170"
+        stroke="#5fb8ff" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+  <!-- ===== NOZZLE ===== -->
+  <g transform="translate(700,170)">
+    <rect x="-6" y="-12" width="40" height="24" fill="url(#gMetal)" rx="3"/>
+    <polygon points="34,-14 60,-6 60,6 34,14" fill="url(#gMetal)"/>
+    <polygon points="60,-6 76,-2 76,2 60,6" fill="#4a525c"/>
+    <text x="30" y="-22" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2a44">NOZZLE</text>
+    <!-- droplets -->
+    <circle class="droplet d1" cx="74"  cy="10" r="3" fill="#3da3ff"/>
+    <circle class="droplet d2" cx="78"  cy="10" r="3" fill="#3da3ff"/>
+    <circle class="droplet d3" cx="82"  cy="10" r="3" fill="#3da3ff"/>
+    <circle class="droplet d4" cx="76"  cy="10" r="3" fill="#3da3ff"/>
+    <circle class="droplet d5" cx="80"  cy="10" r="3" fill="#3da3ff"/>
+  </g>
+
+  <!-- ===== PLANT POT ===== -->
+  <g transform="translate(720,260)">
+    <!-- pot -->
+    <polygon points="0,0 160,0 145,120 15,120" fill="url(#gPot)" stroke="#7a3e22" stroke-width="2"/>
+    <rect x="-6" y="-8" width="172" height="14" fill="#a85a32" stroke="#7a3e22" stroke-width="2" rx="2"/>
+
+    <!-- soil -->
+    <rect class="soil-fill" x="6" y="-2" width="148" height="14" fill="#a07654" rx="2"/>
+
+    <!-- plant: stem + leaves -->
+    <g transform="translate(80,-4)">
+      <path d="M 0 0 Q -2 -30 0 -60 Q 2 -90 0 -130" stroke="#2f7f44" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <ellipse class="leaf leaf-l" cx="-20" cy="-50" rx="20" ry="10" fill="#3eb371" transform="rotate(-35 -20 -50)"/>
+      <ellipse class="leaf leaf-r" cx="20"  cy="-70" rx="20" ry="10" fill="#3eb371" transform="rotate(35 20 -70)"/>
+      <ellipse class="leaf leaf-l2" cx="-18" cy="-100" rx="18" ry="9" fill="#3eb371" transform="rotate(-30 -18 -100)"/>
+      <ellipse class="leaf leaf-r2" cx="18"  cy="-120" rx="18" ry="9" fill="#3eb371" transform="rotate(30 18 -120)"/>
+    </g>
+
+    <text x="80" y="138" text-anchor="middle" font-size="12" font-weight="700" fill="#0a2a44">PLANT</text>
+  </g>
+
+  <!-- ===== ESP32 CONTROLLER ICON ===== -->
+  <g transform="translate(370,360)">
+    <rect x="0" y="0" width="180" height="40" rx="6" fill="#1e222b" stroke="#3a4150"/>
+    <rect x="60" y="8" width="60" height="24" rx="3" fill="#0c0e13"/>
+    <text x="90" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#7cd992">ESP32</text>
+    <circle cx="20" cy="20" r="3" fill="#ff9b3d"/>
+    <text x="20" y="38" text-anchor="middle" font-size="8" fill="#9aa3b2">5V</text>
+    <circle cx="160" cy="20" r="3" class="relay-led" fill="#3a4150"/>
+    <text x="160" y="38" text-anchor="middle" font-size="8" fill="#9aa3b2">D1</text>
+  </g>
+
+  <!-- ===== STATE BANNER ===== -->
+  <g transform="translate(20,20)">
+    <rect x="0" y="0" width="220" height="56" rx="10" fill="rgba(11,13,18,0.7)"/>
+    <text x="14" y="22" font-size="11" fill="#9aa3b2" font-weight="600" letter-spacing="1">CURRENT STATE</text>
+    <text x="14" y="46" id="bannerFsm" font-size="22" font-weight="700" fill="#7cd992" font-family="ui-monospace,Consolas,monospace">IDLE</text>
+    <text x="200" y="46" id="bannerMoist" text-anchor="end" font-size="13" fill="#fff" font-family="ui-monospace,Consolas,monospace">60%</text>
+  </g>
+</svg>
+</div>
+
+<div class="dashboard">
+
+  <div class="card">
+    <h3>Controls</h3>
+    <div class="ctrl-row">
+      <label>Soil moisture <b><span id="soilVal">60</span>%</b></label>
+      <input type="range" id="soilSlider" min="0" max="100" value="60">
+    </div>
+    <div class="ctrl-row">
+      <label>Tank level <b><span id="tankVal">80</span>%</b></label>
+      <input type="range" id="tankSlider" min="0" max="100" value="80">
+    </div>
+    <div class="btn-row">
+      <button id="refillBtn" class="primary">Refill tank</button>
+      <button id="dryBtn">Make dry</button>
+      <button id="resetBtn">Reset day</button>
+    </div>
+    <p class="legend">
+      <span>💡 Auto-dry: soil loses ~1%/sec naturally, like real evaporation.</span>
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>System status</h3>
+    <div class="status-grid">
+      <div><span>State</span><span id="fsm"><span class="pill idle">IDLE</span></span></div>
+      <div><span>Soil moisture</span><span id="soilPct">60%</span></div>
+      <div><span>Tank level</span><span id="tankPct">80%</span></div>
+      <div><span>Dry threshold</span><span>&lt; 30%</span></div>
+      <div><span>Pumps today</span><span id="pumpsToday">0 / 6</span></div>
+      <div><span>Cooldown</span><span id="cooldown">ready</span></div>
+    </div>
+    <p class="legend" style="margin-top:14px">
+      Settings: <kbd>burst 3s</kbd> <kbd>soak 5s</kbd> <kbd>cooldown 10s</kbd>
+    </p>
+  </div>
+
+  <div class="card phone">
+    <h3>📱 Telegram alerts</h3>
+    <div class="phone-frame" id="telegramFeed">
+      <div class="msg ok"><span class="when">just now</span>Plant agent online. Watching the soil.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ===== Smart Plant simulator (mirrors Arduino state machine) =====
+const cfg = {
+  DRY_PCT: 30,
+  PUMP_BURST_MS:    3000,
+  SOAK_WAIT_MS:     5000,
+  PUMP_COOLDOWN_MS: 10000,
+  SAMPLE_MS:        1500,
+  MAX_PUMPS_PER_DAY: 6,
+  SOIL_GAIN_PER_BURST: 50,
+  TANK_DROP_PER_BURST: 12,
+  EVAP_PER_SEC: 1.0
+};
+
+const state = {
+  fsm: 'IDLE',
+  soil: 60,
+  tank: 80,
+  pumpsToday: 0,
+  lastPumpAt: 0,
+  lastTankAlertAt: 0,
+  lastSampleAt: 0,
+  pumpStartedAt: 0,
+  soakStartedAt: 0,
+  startedAt: performance.now(),
+  lastTick: performance.now(),
+  manualSoil: false,
+  manualTank: false
+};
+
+const $ = id => document.getElementById(id);
+const scene = $('scene');
+
+function fmtTime(ms){
+  const s = Math.floor(ms/1000);
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function pushMsg(text, kind){
+  const feed = $('telegramFeed');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (kind || '');
+  div.innerHTML = `<span class="when">+${fmtTime(performance.now() - state.startedAt)}</span>${text}`;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function setFsm(next){
+  state.fsm = next;
+  const banner = $('bannerFsm');
+  const cls = next.toLowerCase();
+  banner.textContent = next;
+  banner.setAttribute('fill', next==='PUMPING' ? '#5aa9ff' : next==='SOAKING' ? '#ffb454' : '#7cd992');
+  $('fsm').innerHTML = `<span class="pill ${cls}">${next}</span>`;
+  if (next === 'PUMPING') scene.classList.add('pumping');
+  else scene.classList.remove('pumping');
+}
+
+function sample(now){
+  state.lastSampleAt = now;
+  const isDry = state.soil < cfg.DRY_PCT;
+  const tankEmpty = state.tank < 5;
+  const cooldownOver = state.lastPumpAt === 0 || (now - state.lastPumpAt) >= cfg.PUMP_COOLDOWN_MS;
+  const quotaLeft = state.pumpsToday < cfg.MAX_PUMPS_PER_DAY;
+
+  if (isDry && tankEmpty){
+    if (state.lastTankAlertAt === 0 || (now - state.lastTankAlertAt) >= cfg.PUMP_COOLDOWN_MS){
+      pushMsg(`⚠️ Soil is dry (${Math.round(state.soil)}%) but the water tank is EMPTY. Please refill!`, 'warn');
+      state.lastTankAlertAt = now;
+    }
+  } else if (isDry && cooldownOver && quotaLeft){
+    state.pumpStartedAt = now;
+    setFsm('PUMPING');
+  } else if (isDry && !quotaLeft && cooldownOver){
+    pushMsg(`Soil still dry but I've hit my daily pump limit (6). Possible blockage or sensor issue. (${Math.round(state.soil)}%)`, 'warn');
+    state.lastPumpAt = now;
+  }
+}
+
+function finishCycle(now){
+  state.lastPumpAt = now;
+  state.pumpsToday++;
+  const pct = Math.round(state.soil);
+  if (state.soil < cfg.DRY_PCT){
+    if (state.tank < 5)
+      pushMsg(`⚠️ Tried to water but soil still dry (${pct}%). Tank is empty - refill!`, 'warn');
+    else
+      pushMsg(`⚠️ Tried to water but soil still dry (${pct}%). Check the tube or pump.`, 'warn');
+  } else {
+    pushMsg(`✅ I was thirsty so I watered myself. Moisture now ${pct}%. 🪴💧`, 'ok');
+  }
+}
+
+function tick(){
+  const now = performance.now();
+  const dt = (now - state.lastTick) / 1000;
+  state.lastTick = now;
+
+  // natural evaporation (unless user is dragging the slider)
+  if (!state.manualSoil && state.fsm !== 'PUMPING'){
+    state.soil = Math.max(0, state.soil - cfg.EVAP_PER_SEC * dt);
+  }
+
+  if (state.fsm === 'IDLE'){
+    if (state.lastSampleAt === 0 || (now - state.lastSampleAt) >= cfg.SAMPLE_MS){
+      sample(now);
+    }
+  } else if (state.fsm === 'PUMPING'){
+    // deliver water proportionally to elapsed burst
+    const elapsed = now - state.pumpStartedAt;
+    const fraction = Math.min(1, elapsed / cfg.PUMP_BURST_MS) - Math.min(1, (elapsed - dt*1000) / cfg.PUMP_BURST_MS);
+    state.soil = Math.min(100, state.soil + cfg.SOIL_GAIN_PER_BURST * fraction);
+    state.tank = Math.max(0, state.tank - cfg.TANK_DROP_PER_BURST * fraction);
+    if (elapsed >= cfg.PUMP_BURST_MS){
+      state.soakStartedAt = now;
+      setFsm('SOAKING');
+    }
+  } else if (state.fsm === 'SOAKING'){
+    if (now - state.soakStartedAt >= cfg.SOAK_WAIT_MS){
+      finishCycle(now);
+      setFsm('IDLE');
+      state.lastSampleAt = now;
+    }
+  }
+
+  render(now);
+  requestAnimationFrame(tick);
+}
+
+function render(now){
+  // tank water level: y=30 + (200-water-h)... container is 200 high (y=30 to y=230)
+  const tankH = (state.tank / 100) * 200;
+  const water = document.querySelector('.tank-water');
+  water.setAttribute('height', tankH);
+  water.setAttribute('y', 30 + (200 - tankH));
+
+  // soil color based on moisture
+  const soil = document.querySelector('.soil-fill');
+  const t = state.soil / 100;
+  const dry = [160,118,84], wet = [77,50,32];
+  const c = dry.map((d,i)=>Math.round(d + (wet[i]-d)*t));
+  soil.setAttribute('fill', `rgb(${c.join(',')})`);
+
+  // leaf droop based on moisture
+  const leaves = document.querySelectorAll('.leaf');
+  const droopy = state.soil < 25;
+  const meh = state.soil < 45;
+  leaves.forEach(l => {
+    l.setAttribute('fill', droopy ? '#a8b96a' : (meh ? '#7eb86b' : '#3eb371'));
+  });
+
+  // banner / status numbers
+  $('bannerMoist').textContent = Math.round(state.soil) + '%';
+  $('soilPct').textContent = Math.round(state.soil) + '%';
+  $('tankPct').textContent = Math.round(state.tank) + '%';
+  $('pumpsToday').textContent = `${state.pumpsToday} / ${cfg.MAX_PUMPS_PER_DAY}`;
+  const cooldownLeft = Math.max(0, cfg.PUMP_COOLDOWN_MS - (now - state.lastPumpAt));
+  $('cooldown').textContent = (state.lastPumpAt === 0 || cooldownLeft === 0) ? 'ready' : `${Math.ceil(cooldownLeft/1000)}s`;
+
+  // sliders mirror state when not being dragged
+  if (!state.manualSoil) $('soilSlider').value = Math.round(state.soil);
+  if (!state.manualTank) $('tankSlider').value = Math.round(state.tank);
+  $('soilVal').textContent = Math.round(state.soil);
+  $('tankVal').textContent = Math.round(state.tank);
+}
+
+// ===== controls =====
+$('soilSlider').addEventListener('input', e => {
+  state.manualSoil = true;
+  state.soil = +e.target.value;
+});
+$('soilSlider').addEventListener('change', () => { state.manualSoil = false; });
+$('tankSlider').addEventListener('input', e => {
+  state.manualTank = true;
+  state.tank = +e.target.value;
+});
+$('tankSlider').addEventListener('change', () => { state.manualTank = false; });
+$('refillBtn').addEventListener('click', () => {
+  state.tank = 100;
+  pushMsg('🪣 Tank refilled to 100%.', 'ok');
+});
+$('dryBtn').addEventListener('click', () => {
+  state.soil = 15;
+  pushMsg('🥵 Soil moisture forced to 15% (very dry).', '');
+});
+$('resetBtn').addEventListener('click', () => {
+  state.pumpsToday = 0;
+  state.lastPumpAt = 0;
+  pushMsg('🔄 Day counter reset. 6 pumps available again.', '');
+});
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

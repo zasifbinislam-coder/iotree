@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "author": "Plant Communicator",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-potentiometer",    "id": "soilPot", "top": -230, "left": -210, "attrs": { "value": "1500" } },
+    { "type": "wokwi-slide-switch",     "id": "tankSw",  "top": 100,  "left": -200, "attrs": {} },
+    { "type": "wokwi-relay-module",     "id": "relay",   "top": -60,  "left": 220,  "attrs": {} }
+  ],
+  "connections": [
+    [ "soilPot:VCC",  "esp:3V3",   "red",    [] ],
+    [ "soilPot:GND",  "esp:GND.1", "black",  [] ],
+    [ "soilPot:SIG",  "esp:34",    "yellow", [] ],
+    [ "tankSw:1",     "esp:GND.2", "black",  [] ],
+    [ "tankSw:2",     "esp:14",    "blue",   [] ],
+    [ "relay:VCC",    "esp:VIN",   "orange", [] ],
+    [ "relay:GND",    "esp:GND.2", "black",  [] ],
+    [ "relay:IN",     "esp:13",    "green",  [] ]
+  ],
+  "dependencies": {}
+}

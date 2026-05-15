@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Plant Communicator — IoT project hub</title>
+<style>
+  :root{
+    --bg:#0f1115;--panel:#171a21;--panel-2:#1e222b;--line:#2a2f3a;
+    --text:#e6e8ee;--muted:#9aa3b2;--accent:#7cd992;--blue:#5aa9ff;--orange:#ff9b3d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:50px 24px}
+  header{text-align:center;margin-bottom:48px}
+  h1{font-size:38px;margin:0 0 10px;letter-spacing:-.5px}
+  h1 .leaf{color:var(--accent)}
+  .tag{color:var(--muted);font-size:16px;margin:0;max-width:620px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;margin:36px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;
+    text-decoration:none;color:inherit;transition:border-color .15s,transform .15s,background .15s;display:block}
+  .card:hover{border-color:var(--accent);background:#1c2028;transform:translateY(-2px)}
+  .card .ico{font-size:32px;display:block;margin-bottom:10px}
+  .card h3{margin:0 0 6px;font-size:18px;color:var(--text)}
+  .card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.5}
+  .card .pill{display:inline-block;font-size:10.5px;padding:2px 10px;border-radius:999px;
+    background:var(--panel-2);color:var(--accent);margin-top:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+  .pill.blue{color:var(--blue)}
+  .pill.orange{color:var(--orange)}
+  hr.soft{border:none;border-top:1px solid var(--line);margin:42px 0 22px}
+  .about{color:var(--muted);font-size:14px;line-height:1.7}
+  .about code{background:var(--panel-2);padding:2px 7px;border-radius:4px;font-size:13px;color:var(--text)}
+  .footer{margin-top:50px;color:var(--muted);font-size:12.5px;text-align:center}
+  .footer a{color:var(--accent);text-decoration:none}
+  .footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1><span class="leaf">🌱</span> Smart Plant Communicator</h1>
+  <p class="tag">A self-watering plant that texts you when it's thirsty. NodeMCU ESP8266 + soil sensor + water-level probe + pump + Telegram. Everything you need to build it, simulate it, and tune it — in one place.</p>
+</header>
+
+<div class="grid">
+
+  <a class="card" href="plant-sim-ide/">
+    <span class="ico">💻</span>
+    <h3>Plant Sim IDE</h3>
+    <p>Paste your sketch, click Run, watch the plant get watered. The IDE parses your tuning constants and drives a live animated simulation — perfect for testing thresholds and timings without burning out a real pump.</p>
+    <span class="pill">try it →</span>
+  </a>
+
+  <a class="card" href="plant-wiring-diagram.html">
+    <span class="ico">🔌</span>
+    <h3>Wiring &amp; Build Guide</h3>
+    <p>Complete wiring diagram with color-coded SVG, parts list with model numbers, 11-row connection checklist, calibration steps, and Arduino IDE flashing instructions. Print-friendly for the workbench.</p>
+    <span class="pill blue">build →</span>
+  </a>
+
+  <a class="card" href="plant-simulator.html">
+    <span class="ico">🎬</span>
+    <h3>Live Process Animation</h3>
+    <p>The full physical story — water tank with falling level, spinning pump motor, water flowing through the tube, droplets from the nozzle, soil darkening as it gets watered, plant leaves perking up. Pure visual storytelling.</p>
+    <span class="pill orange">watch →</span>
+  </a>
+
+</div>
+
+<hr class="soft">
+
+<div class="about">
+  <h3 style="margin-top:0;color:var(--text)">What's in the source folders</h3>
+  <ul>
+    <li><code>plant_communicator/plant_communicator.ino</code> — production sketch for the real NodeMCU. Real-world timings (60 s sample, 1 h cooldown, 6 pumps/day cap).</li>
+    <li><code>wokwi/</code> — Wokwi simulator project files (ESP32 and Wemos D1 Mini variants) so you can verify the firmware in your browser before flashing hardware.</li>
+    <li><code>plant-sim-ide/</code> — the visual IDE in this hub.</li>
+  </ul>
+  <p>All the source is on GitHub. Fork, modify, deploy your own — it's a static site, no backend, no build step.</p>
+</div>
+
+<p class="footer">
+  Project source on <a href="https://github.com/zasifbinislam-coder/iotree" target="_blank" rel="noopener">GitHub</a>.
+</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "author": "Plant Communicator (ESP32 sim)",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "rotate": 0, "attrs": {} },
+
+    { "type": "wokwi-text", "id": "lblSoil", "top": -280, "left": -230,
+      "attrs": { "text": "SOIL MOISTURE  (turn knob right = drier)", "color": "#7cd992", "fontSize": "14" } },
+    { "type": "wokwi-potentiometer", "id": "soilPot", "top": -230, "left": -210,
+      "attrs": { "value": "1500" } },
+
+    { "type": "wokwi-text", "id": "lblTank", "top": 60, "left": -230,
+      "attrs": { "text": "WATER TANK LEVEL  (slide = empty vs has water)", "color": "#5aa9ff", "fontSize": "14" } },
+    { "type": "wokwi-slide-switch", "id": "tankSw", "top": 100, "left": -200, "attrs": {} },
+
+    { "type": "wokwi-text", "id": "lblRelay", "top": -110, "left": 200,
+      "attrs": { "text": "PUMP RELAY  (LED on = pumping)", "color": "#ff9b3d", "fontSize": "14" } },
+    { "type": "wokwi-relay-module", "id": "relay", "top": -60, "left": 220, "attrs": {} }
+  ],
+  "connections": [
+    [ "soilPot:VCC",  "esp:3V3",    "red",    [] ],
+    [ "soilPot:GND",  "esp:GND.1",  "black",  [] ],
+    [ "soilPot:SIG",  "esp:34",     "yellow", [] ],
+
+    [ "tankSw:1",     "esp:GND.2",  "black",  [] ],
+    [ "tankSw:2",     "esp:14",     "blue",   [] ],
+
+    [ "relay:VCC",    "esp:VIN",    "orange", [] ],
+    [ "relay:GND",    "esp:GND.2",  "black",  [] ],
+    [ "relay:IN",     "esp:13",     "green",  [] ]
+  ],
+  "dependencies": {}
+}

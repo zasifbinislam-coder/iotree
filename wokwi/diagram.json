@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "author": "Plant Communicator",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-wemos-d1-mini", "id": "esp", "top": 0, "left": 0, "rotate": 0, "attrs": {} },
+    { "type": "wokwi-soil-moisture-sensor", "id": "soil", "top": -180, "left": -110, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay", "top": 80, "left": 200, "attrs": {} }
+  ],
+  "connections": [
+    [ "soil:VCC",  "esp:3V3",   "red",    [ "v0" ] ],
+    [ "soil:GND",  "esp:GND.1", "black",  [ "v0" ] ],
+    [ "soil:SIG",  "esp:A0",    "yellow", [ "v0" ] ],
+    [ "relay:VCC", "esp:5V",    "orange", [ "v0" ] ],
+    [ "relay:GND", "esp:GND.2", "black",  [ "v0" ] ],
+    [ "relay:IN",  "esp:D1",    "green",  [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
