@@ -1,5 +1,5 @@
-// Default files bundled with the IDE.
-// Defined as strings so the IDE works offline from file:// (no fetch).
+// Default files + preset examples bundled with the IDE.
+// All defined as strings so the IDE works offline from file:// (no fetch).
 
 window.DEFAULT_SKETCH = `// Smart Plant Communicator
 // NodeMCU ESP8266 + analog soil sensor + water-level probe + relay + Telegram
@@ -37,65 +37,6 @@ UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 
 enum State { IDLE, PUMPING, SOAKING };
 State state = IDLE;
-
-unsigned long lastSampleAt    = 0;
-unsigned long pumpStartedAt   = 0;
-unsigned long soakStartedAt   = 0;
-unsigned long lastPumpAt      = 0;
-unsigned long lastTankAlertAt = 0;
-unsigned long dayWindowStart  = 0;
-uint8_t       pumpsThisWindow = 0;
-
-void pumpOn()  { digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? LOW  : HIGH); }
-void pumpOff() { digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? HIGH : LOW ); }
-
-void connectWifi() {
-  Serial.print("Wi-Fi");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.print(" OK, IP="); Serial.println(WiFi.localIP());
-}
-
-int readMoistureRaw() {
-  long sum = 0;
-  for (int i = 0; i < 8; i++) { sum += analogRead(A0); delay(20); }
-  return (int)(sum / 8);
-}
-
-int rawToPercent(int raw) {
-  if (raw <= WET_FLOOR)     return 100;
-  if (raw >= DRY_THRESHOLD) return 0;
-  long pct = map(raw, WET_FLOOR, DRY_THRESHOLD, 100, 0);
-  return constrain((int)pct, 0, 100);
-}
-
-bool isTankEmpty() { return digitalRead(TANK_LEVEL_PIN) == HIGH; }
-
-void sendTelegram(const String& msg) {
-  if (!bot.sendMessage(CHAT_ID, msg, "")) Serial.println("TG send failed");
-}
-
-void setup() {
-  Serial.begin(115200);
-  delay(200);
-  digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? HIGH : LOW);
-  pinMode(PUMP_PIN, OUTPUT);
-  pumpOff();
-  pinMode(A0, INPUT);
-  pinMode(TANK_LEVEL_PIN, INPUT_PULLUP);
-  connectWifi();
-  secured_client.setInsecure();
-  dayWindowStart = millis();
-  Serial.println("Plant agent online.");
-}
-
-void loop() {
-  // Full FSM lives here in the real sketch (IDLE -> PUMPING -> SOAKING).
-  // See plant_communicator.ino in the parent folder for the complete loop.
-  // The IDE only needs the constants above to drive the simulation.
-  delay(50);
-}
 `;
 
 window.DEFAULT_DIAGRAM = `{
@@ -121,3 +62,117 @@ window.DEFAULT_DIAGRAM = `{
   "dependencies": {}
 }
 `;
+
+// ===== Preset examples =====
+window.EXAMPLES = {
+  default: {
+    name: 'Default — balanced (1h cooldown, 6/day)',
+    sketch: window.DEFAULT_SKETCH
+  },
+
+  fast: {
+    name: 'Fast & twitchy — small bursts, low cooldown',
+    sketch: `// Fast & twitchy preset
+// Small frequent waterings - good for shallow pots that dry quickly.
+// Watch the simulator: bursts trigger often, plant stays consistently moist.
+
+#include <ESP8266WiFi.h>
+
+const int DRY_THRESHOLD = 600;
+const int WET_FLOOR     = 300;
+
+const unsigned long PUMP_BURST_MS      = 2UL * 1000UL;     // 2 s burst
+const unsigned long SOAK_WAIT_MS       = 10UL * 1000UL;    // 10 s soak
+const unsigned long PUMP_COOLDOWN_MS   = 5UL * 60UL * 1000UL;   // 5 min cooldown
+const unsigned long SAMPLE_INTERVAL_MS = 20UL * 1000UL;    // 20 s sample
+const uint8_t       MAX_PUMPS_PER_DAY  = 20;
+
+const bool    PUMP_ACTIVE_LOW = true;
+`
+  },
+
+  conservative: {
+    name: 'Conservative — patient, big bursts (4h cooldown)',
+    sketch: `// Conservative preset
+// Long deep waterings on a slow schedule - mimics how you'd water a
+// houseplant manually. Plant gets thoroughly soaked, then dries down.
+
+#include <ESP8266WiFi.h>
+
+const int DRY_THRESHOLD = 900;
+const int WET_FLOOR     = 300;
+
+const unsigned long PUMP_BURST_MS      = 15UL * 1000UL;       // 15 s burst
+const unsigned long SOAK_WAIT_MS       = 60UL * 1000UL;       // 1 min soak
+const unsigned long PUMP_COOLDOWN_MS   = 4UL * 60UL * 60UL * 1000UL;  // 4 h
+const unsigned long SAMPLE_INTERVAL_MS = 5UL * 60UL * 1000UL; // 5 min sample
+const uint8_t       MAX_PUMPS_PER_DAY  = 3;
+
+const bool    PUMP_ACTIVE_LOW = true;
+`
+  },
+
+  cactus: {
+    name: 'Cactus mode — once a day, only when very dry',
+    sketch: `// Cactus / succulent preset
+// Triggers only when soil is VERY dry, then one short watering per day.
+// Set MAX_PUMPS_PER_DAY=1, so even if the soil dries faster than expected
+// (e.g. in a heat wave), the bot will Telegram you instead of overwatering.
+
+#include <ESP8266WiFi.h>
+
+const int DRY_THRESHOLD = 950;   // very dry before triggering
+const int WET_FLOOR     = 250;
+
+const unsigned long PUMP_BURST_MS      = 3UL * 1000UL;        // 3 s burst
+const unsigned long SOAK_WAIT_MS       = 30UL * 1000UL;
+const unsigned long PUMP_COOLDOWN_MS   = 24UL * 60UL * 60UL * 1000UL;  // 24 h
+const unsigned long SAMPLE_INTERVAL_MS = 30UL * 60UL * 1000UL;         // 30 min
+const uint8_t       MAX_PUMPS_PER_DAY  = 1;
+
+const bool    PUMP_ACTIVE_LOW = true;
+`
+  },
+
+  esp32: {
+    name: 'ESP32 — 12-bit ADC (auto-detected by IDE)',
+    sketch: `// ESP32 variant
+// ESP32 has a 12-bit ADC (0..4095) vs the ESP8266's 10-bit (0..1023).
+// The IDE auto-detects this from threshold magnitudes and rescales display.
+
+#include <WiFi.h>
+
+const int DRY_THRESHOLD = 2800;   // 4x larger than ESP8266 equivalent
+const int WET_FLOOR     = 1200;
+
+const unsigned long PUMP_BURST_MS      = 5UL * 1000UL;
+const unsigned long SOAK_WAIT_MS       = 30UL * 1000UL;
+const unsigned long PUMP_COOLDOWN_MS   = 60UL * 60UL * 1000UL;
+const unsigned long SAMPLE_INTERVAL_MS = 60UL * 1000UL;
+const uint8_t       MAX_PUMPS_PER_DAY  = 6;
+
+const bool    PUMP_ACTIVE_LOW = true;
+`
+  },
+
+  bonsai: {
+    name: 'Bonsai — tight calibration, gentle waterings',
+    sketch: `// Bonsai / sensitive plant preset
+// Tight gap between wet and dry, so the simulator shows finer % control.
+// Many small waterings; never lets soil get crispy.
+
+#include <ESP8266WiFi.h>
+
+const int DRY_THRESHOLD = 600;
+const int WET_FLOOR     = 500;   // tight 100-point band
+
+const unsigned long PUMP_BURST_MS      = 1500UL;              // 1.5 s gentle
+const unsigned long SOAK_WAIT_MS       = 20UL * 1000UL;
+const unsigned long PUMP_COOLDOWN_MS   = 30UL * 60UL * 1000UL;  // 30 min
+const unsigned long SAMPLE_INTERVAL_MS = 2UL * 60UL * 1000UL;   // 2 min
+const uint8_t       MAX_PUMPS_PER_DAY  = 10;
+
+const bool    PUMP_ACTIVE_LOW = true;
+`
+  }
+};

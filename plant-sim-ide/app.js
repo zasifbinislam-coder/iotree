@@ -460,8 +460,36 @@ window.addEventListener('appinstalled', () => {
 $('runBtn').addEventListener('click', doRun);
 $('pauseBtn').addEventListener('click', doPause);
 $('resetBtn').addEventListener('click', doReset);
-$('exampleBtn').addEventListener('click', resetToExample);
 $('saveBtn').addEventListener('click', saveSketch);
+
+// Populate example sketches dropdown
+(function populateExamples() {
+  const sel = $('exampleSelect');
+  if (!window.EXAMPLES) return;
+  Object.keys(window.EXAMPLES).forEach(key => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = window.EXAMPLES[key].name;
+    sel.appendChild(opt);
+  });
+})();
+$('exampleSelect').addEventListener('change', e => {
+  const key = e.target.value;
+  const ex = window.EXAMPLES && window.EXAMPLES[key];
+  if (ex) {
+    if ($('dirtyDot').classList.contains('dirty') &&
+        !confirm('Discard your edits and load this example?')) {
+      e.target.value = '';
+      return;
+    }
+    setSketch(ex.sketch);
+    if (ex.diagram) setDiagram(ex.diagram);
+    clearDirty();
+    applyConstants(extractConstants(ex.sketch));
+    setStatus(`Loaded preset: ${ex.name}`, '');
+  }
+  e.target.value = '';
+});
 $('loadInput').addEventListener('change', e => {
   if (e.target.files[0]) loadFile(e.target.files[0]);
   e.target.value = '';

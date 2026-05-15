@@ -5,7 +5,9 @@ const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-const isDev = !app.isPackaged;
+// DevTools auto-opens only when DEBUG=1 is set in the environment.
+// Otherwise the window opens clean - press F12 to open DevTools manually.
+const openDevToolsOnLaunch = process.env.DEBUG === '1';
 
 // Resolve the path to plant-sim-ide regardless of whether we're packaged.
 function resolveIndex() {
@@ -46,7 +48,7 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
+  if (openDevToolsOnLaunch) mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   mainWindow.on('closed', () => { mainWindow = null; });
 }

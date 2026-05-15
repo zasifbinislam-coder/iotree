@@ -29,7 +29,9 @@
       <label class="btn file-btn" for="loadInput">📂 Load .ino</label>
       <input id="loadInput" type="file" accept=".ino,.txt,.cpp,.h,application/json" hidden>
       <button id="saveBtn" class="btn">💾 Save sketch</button>
-      <button id="exampleBtn" class="btn">📑 Reset to example</button>
+      <select id="exampleSelect" class="btn select-btn" title="Load a preset sketch">
+        <option value="" disabled selected>📑 Load example…</option>
+      </select>
       <button id="installBtn" class="btn" hidden>⬇ Install app</button>
     </div>
   </header>
