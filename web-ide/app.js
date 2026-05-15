@@ -612,7 +612,207 @@ function highlightCpp(code) {
     .replace(/\b(\d+(\.\d+)?)\b/g, '<span class="num">$1</span>');
 }
 
-// ===================== WOKWI EXPORT =====================
+// ===================== LOCAL SIMULATOR INTEGRATION =====================
+let simComponents = {};   // uid -> { type, state, runtime }
+const SIM_STATE_PILL = { idle:'stopped', running:'running', paused:'paused', error:'error' };
+
+function buildPinMap() {
+  // Returns: { boardPinId → { componentUid, componentPin } }
+  const map = {};
+  state.wires.forEach(w => {
+    let boardEnd, otherEnd;
+    if (w.from.uid === 'board') { boardEnd = w.from; otherEnd = w.to; }
+    else if (w.to.uid === 'board') { boardEnd = w.to; otherEnd = w.from; }
+    else return;
+    // Use the board pin's id in code-formatted form (D1, A0, raw GPIO number)
+    const boardPin = formatPinForBoard(boardEnd.pinId);
+    map[boardPin] = { componentUid: otherEnd.uid, componentPin: otherEnd.pinId };
+  });
+  return map;
+}
+
+function buildSimComponents() {
+  simComponents = {};
+  state.components.forEach(c => {
+    const def = COMPONENTS[c.type];
+    if (!def.runtime) return;
+    const initialState = typeof def.runtime.state === 'function'
+      ? def.runtime.state() : { ...(def.runtime.state || {}) };
+    simComponents[c.uid] = {
+      type: c.type,
+      state: initialState,
+      runtime: def.runtime
+    };
+  });
+}
+
+function setSimStatus(kind, msg) {
+  const el = $('simStatus');
+  el.className = 'sim-state ' + kind;
+  el.textContent = msg || SIM_STATE_PILL[kind];
+}
+
+function renderWidgets() {
+  const list = $('simWidgets');
+  list.innerHTML = '';
+  if (!Object.keys(simComponents).length) {
+    list.innerHTML = '<div class="muted small" style="padding:12px">No simulatable components on the canvas yet. Add a potentiometer, button, LED, relay, etc.</div>';
+    return;
+  }
+  Object.entries(simComponents).forEach(([uid, comp]) => {
+    const def = COMPONENTS[comp.type];
+    const row = document.createElement('div');
+    row.className = 'widget-row';
+    row.dataset.uid = uid;
+
+    const label = comp.state.label || def.label.split(' (')[0];
+    row.innerHTML = `<div class="widget-name">${uid}<small>${label}</small></div>`;
+
+    const ctl = document.createElement('div');
+    ctl.className = 'widget-ctl';
+    row.appendChild(ctl);
+    buildWidgetControl(ctl, uid, comp);
+    list.appendChild(row);
+  });
+}
+
+function buildWidgetControl(ctl, uid, comp) {
+  const widget = comp.runtime.widget;
+  if (widget === 'slider') {
+    const max = comp.state.max || 1023;
+    const sl = document.createElement('input');
+    sl.type = 'range'; sl.min = 0; sl.max = max; sl.value = comp.state.value;
+    const val = document.createElement('span');
+    val.className = 'widget-val'; val.textContent = comp.state.value;
+    sl.addEventListener('input', e => {
+      comp.state.value = +e.target.value;
+      val.textContent = comp.state.value;
+    });
+    ctl.appendChild(sl); ctl.appendChild(val);
+  }
+  else if (widget === 'momentary') {
+    const btn = document.createElement('button');
+    btn.className = 'pressbtn';
+    btn.textContent = 'Press & hold';
+    const press   = () => { comp.state.pressed = true; btn.classList.add('pressed'); };
+    const release = () => { comp.state.pressed = false; btn.classList.remove('pressed'); };
+    btn.addEventListener('mousedown', press);
+    btn.addEventListener('mouseup', release);
+    btn.addEventListener('mouseleave', release);
+    btn.addEventListener('touchstart', e => { e.preventDefault(); press(); });
+    btn.addEventListener('touchend',   e => { e.preventDefault(); release(); });
+    ctl.appendChild(btn);
+  }
+  else if (widget === 'toggle') {
+    const lbl = document.createElement('label');
+    lbl.className = 'switch';
+    lbl.innerHTML = `<input type="checkbox"${comp.state.on ? ' checked' : ''}> <span>${comp.state.on ? 'ON' : 'OFF'}</span>`;
+    const cb = lbl.querySelector('input');
+    const text = lbl.querySelector('span');
+    cb.addEventListener('change', e => {
+      comp.state.on = e.target.checked;
+      text.textContent = comp.state.on ? 'ON' : 'OFF';
+    });
+    ctl.appendChild(lbl);
+  }
+  else if (widget === 'led' || widget === 'relay' || widget === 'buzzer') {
+    const dot = document.createElement('span');
+    dot.className = 'led-dot ' + widget;
+    const val = document.createElement('span');
+    val.className = 'widget-val';
+    val.textContent = 'OFF';
+    ctl.appendChild(dot); ctl.appendChild(val);
+  }
+  else if (widget === 'servo') {
+    const wrap = document.createElement('span');
+    wrap.className = 'servo-arm';
+    wrap.innerHTML = `<svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="#5aa9ff" stroke-width="1.5"/><line class="servo-line" x1="15" y1="15" x2="28" y2="15" stroke="#7cd992" stroke-width="2"/></svg>`;
+    const val = document.createElement('span');
+    val.className = 'widget-val'; val.textContent = '0°';
+    ctl.appendChild(wrap); ctl.appendChild(val);
+  }
+}
+
+function updateWidget(uid, compState) {
+  const row = document.querySelector(`.widget-row[data-uid="${uid}"]`);
+  if (!row) return;
+  const dot = row.querySelector('.led-dot');
+  const val = row.querySelector('.widget-val');
+  const comp = simComponents[uid];
+  if (!comp) return;
+  const widget = comp.runtime.widget;
+  if (widget === 'led' || widget === 'dc-motor') {
+    if (dot) dot.classList.toggle('on', compState.lit);
+    if (val) val.textContent = compState.lit ? `ON (${compState.brightness || 255})` : 'OFF';
+  }
+  else if (widget === 'relay') {
+    if (dot) dot.classList.toggle('on', compState.on);
+    if (val) val.textContent = compState.on ? 'CLOSED' : 'OPEN';
+  }
+  else if (widget === 'buzzer') {
+    if (dot) dot.classList.toggle('on', compState.active);
+    if (val) val.textContent = compState.active ? 'BEEP' : 'silent';
+  }
+  else if (widget === 'servo') {
+    const line = row.querySelector('.servo-line');
+    if (line) {
+      const a = ((compState.angle || 0) - 90) * Math.PI / 180;
+      line.setAttribute('x2', 15 + 13 * Math.cos(a));
+      line.setAttribute('y2', 15 + 13 * Math.sin(a));
+    }
+    if (val) val.textContent = (compState.angle | 0) + '°';
+  }
+}
+
+async function startSimulation() {
+  // Switch to simulator tab so the user sees output
+  document.querySelector('.tab[data-tab="sim"]').click();
+  $('simSerial').textContent = '';
+
+  buildSimComponents();
+  renderWidgets();
+
+  const pinMap = buildPinMap();
+  const sketch = generateSketch();
+
+  $('runSimBtn').hidden = true;
+  $('pauseSimBtn').hidden = false;
+  $('pauseSimBtn').textContent = '⏸ Pause';
+  $('stopSimBtn').hidden = false;
+  setSimStatus('running');
+
+  await SimEngine.run(sketch, pinMap, simComponents, {
+    onSerial: text => { $('simSerial').textContent = text; $('simSerial').scrollTop = 1e9; },
+    onPinWrite: (pin, val, kind) => {},
+    onComponentState: (uid, compState) => updateWidget(uid, compState),
+    onError: msg => { setSimStatus('error', msg); }
+  });
+
+  // run() returns when sim ends or errors out
+  if (SimEngine.isRunning() === false) {
+    $('runSimBtn').hidden = false;
+    $('pauseSimBtn').hidden = true;
+    $('stopSimBtn').hidden = true;
+    if (!$('simStatus').classList.contains('error')) setSimStatus('idle');
+  }
+}
+
+function pauseSimulation() {
+  const nowPaused = !SimEngine.isPaused();
+  SimEngine.setPaused(nowPaused);
+  $('pauseSimBtn').textContent = nowPaused ? '▶ Resume' : '⏸ Pause';
+  setSimStatus(nowPaused ? 'paused' : 'running');
+}
+
+function stopSimulation() {
+  SimEngine.stop();
+  $('runSimBtn').hidden = false;
+  $('pauseSimBtn').hidden = true;
+  $('stopSimBtn').hidden = true;
+  setSimStatus('idle');
+}
+
+// ===================== WOKWI EXPORT (still available via Download) =====================
 function exportWokwi() {
   const board = BOARDS[state.boardId];
   const parts = [{
@@ -704,8 +904,11 @@ function wokwiUrlForBoard(boardId) {
 $('autoWireBtn').addEventListener('click', autoWirePower);
 $('clearBtn').addEventListener('click', clearAll);
 $('copyCodeBtn').addEventListener('click', copyCode);
-$('exportBtn').addEventListener('click', openInWokwi);
 $('downloadBtn').addEventListener('click', downloadProject);
+$('runSimBtn').addEventListener('click', startSimulation);
+$('pauseSimBtn').addEventListener('click', pauseSimulation);
+$('stopSimBtn').addEventListener('click', stopSimulation);
+$('clearSimBtn').addEventListener('click', () => { $('simSerial').textContent = ''; });
 
 // ===================== INIT =====================
 populateBoards();

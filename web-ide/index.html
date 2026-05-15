@@ -25,9 +25,12 @@
       <button id="autoWireBtn" class="btn" title="Auto-connect power & ground for all components">⚡ Auto-power</button>
       <button id="clearBtn" class="btn">🗑️ Clear</button>
       <span class="divider"></span>
+      <button id="runSimBtn" class="btn primary">▶ Run Simulation</button>
+      <button id="pauseSimBtn" class="btn" hidden>⏸ Pause</button>
+      <button id="stopSimBtn" class="btn" hidden>■ Stop</button>
+      <span class="divider"></span>
       <button id="copyCodeBtn" class="btn">📋 Copy code</button>
-      <button id="exportBtn" class="btn primary">📤 Open in Wokwi</button>
-      <button id="downloadBtn" class="btn">⬇ Download project</button>
+      <button id="downloadBtn" class="btn">⬇ Download</button>
     </div>
   </header>
 
@@ -75,6 +78,7 @@
     <aside class="output-panel">
       <div class="tabs">
         <button class="tab active" data-tab="code">sketch.ino</button>
+        <button class="tab" data-tab="sim">▶ simulator</button>
         <button class="tab" data-tab="libs">libraries</button>
         <button class="tab" data-tab="wires">wiring</button>
       </div>
@@ -83,6 +87,23 @@
         <div id="libsOutput" class="libs-out hidden" data-tab-pane="libs">
           <p class="muted small">Add the following libraries via Arduino IDE → Tools → Manage Libraries, or in PlatformIO via <code>lib_deps</code>. They are auto-included in the Wokwi project export.</p>
           <ul id="libsList"></ul>
+        </div>
+        <div id="simOutput" class="sim-out hidden" data-tab-pane="sim">
+          <div class="sim-status-bar">
+            <span id="simStatus" class="sim-state idle">stopped</span>
+            <span class="spacer"></span>
+            <button id="clearSimBtn" class="link-btn">clear</button>
+          </div>
+          <div class="sim-section">
+            <header>Serial Monitor</header>
+            <pre id="simSerial" class="serial-out"></pre>
+          </div>
+          <div class="sim-section">
+            <header>Inputs / Outputs</header>
+            <div id="simWidgets" class="widgets-list">
+              <div class="muted small" style="padding:12px">Click <b>▶ Run Simulation</b> to start.<br>Components with widgets: potentiometer, push button, slide switch, PIR, LED, relay, buzzer, servo, soil moisture, LDR.</div>
+            </div>
+          </div>
         </div>
         <div id="wiresOutput" class="wires-out hidden" data-tab-pane="wires">
           <table class="wires-table">
@@ -104,6 +125,7 @@
 </div>
 
 <script src="catalog.js"></script>
+<script src="sim-engine.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

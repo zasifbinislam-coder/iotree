@@ -507,6 +507,97 @@ window.COMPONENTS = {
   }
 };
 
+// =========================================================================
+// RUNTIME (simulator) configs — attached to components below.
+// Components without a runtime entry are visible & wireable & generate code,
+// but they don't get a live widget in the simulator panel.
+// =========================================================================
+const RUNTIMES = {
+
+  'potentiometer': {
+    widget: 'slider',
+    state: () => ({ value: 512, max: 1023 }),
+    onPinRead: (state, pinId) => pinId === 'SIG' ? state.value : null
+  },
+
+  'soilmoisture': {
+    widget: 'slider',
+    state: () => ({ value: 500, max: 1023, label: 'soil (0=wet, 1023=dry)' }),
+    onPinRead: (state, pinId) => pinId === 'SIG' ? state.value : null
+  },
+
+  'ldr': {
+    widget: 'slider',
+    state: () => ({ value: 400, max: 1023, label: 'light (low=dark)' }),
+    onPinRead: (state, pinId) => pinId === 'B' ? state.value : null
+  },
+
+  'pushbutton': {
+    widget: 'momentary',
+    state: () => ({ pressed: false }),
+    // INPUT_PULLUP convention: pressed = LOW, released = HIGH
+    onPinRead: (state, pinId) => state.pressed ? 0 : 1
+  },
+
+  'slide-switch': {
+    widget: 'toggle',
+    state: () => ({ on: false }),
+    onPinRead: (state, pinId) => state.on ? 0 : 1
+  },
+
+  'pir': {
+    widget: 'momentary',
+    state: () => ({ pressed: false, label: 'motion' }),
+    onPinRead: (state, pinId) => state.pressed ? 1 : 0
+  },
+
+  'led': {
+    widget: 'led',
+    state: () => ({ lit: false, brightness: 0 }),
+    onPinWrite: (state, pinId, val) => {
+      state.lit = val > 0;
+      state.brightness = val > 1 ? Math.min(255, val) : (val ? 255 : 0);
+    }
+  },
+
+  'rgb-led': {
+    widget: 'led',
+    state: () => ({ lit: false }),
+    onPinWrite: (state, pinId, val) => { state.lit = val > 0; }
+  },
+
+  'relay': {
+    widget: 'relay',
+    state: () => ({ on: false, activeLow: true }),
+    onPinWrite: (state, pinId, val) => {
+      // Most cheap relay modules are active-LOW: LOW = engaged, HIGH = off
+      state.on = state.activeLow ? (val === 0) : (val > 0);
+    }
+  },
+
+  'buzzer': {
+    widget: 'buzzer',
+    state: () => ({ active: false }),
+    onPinWrite: (state, pinId, val) => { state.active = val > 0; }
+  },
+
+  'servo': {
+    widget: 'servo',
+    state: () => ({ angle: 0 }),
+    onPinWrite: (state, pinId, val) => { state.angle = val; }
+  },
+
+  'dc-motor': {
+    widget: 'led',
+    state: () => ({ lit: false }),
+    onPinWrite: (state, pinId, val) => { state.lit = val > 0; }
+  }
+};
+
+Object.entries(RUNTIMES).forEach(([type, rt]) => {
+  if (window.COMPONENTS[type]) window.COMPONENTS[type].runtime = rt;
+});
+
 // Pin role compatibility table - which board pin roles can a component pin connect to?
 window.PIN_COMPAT = {
   'power3v3': ['power3v3'],
