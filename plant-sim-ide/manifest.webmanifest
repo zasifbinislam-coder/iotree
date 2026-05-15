@@ -1,0 +1,27 @@
+{
+  "name": "Plant Sim IDE",
+  "short_name": "Plant Sim",
+  "description": "Browser-based IDE for the Smart Plant Communicator. Edit sketch, run live animated simulation, test thresholds and timings.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e1e1e",
+  "theme_color": "#1e1e1e",
+  "lang": "en",
+  "categories": ["education", "developer", "utilities"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

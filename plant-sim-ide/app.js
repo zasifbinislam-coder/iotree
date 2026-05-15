@@ -1,7 +1,6 @@
 // ====================================================================
-// Plant Sim IDE - main app logic
-// Parses constants from the user's sketch.ino and drives a visual
-// simulation that mirrors the Arduino state machine.
+// Plant Sim IDE - main app logic (Monaco edition)
+// Parses constants from sketch.ino and drives a visual plant simulation.
 // ====================================================================
 
 (() => {
@@ -11,7 +10,6 @@ const $ = id => document.getElementById(id);
 
 // ===================== STATE =====================
 const cfg = {
-  // populated from sketch each time Run is pressed
   DRY_THRESHOLD: 800,
   WET_FLOOR: 400,
   PUMP_BURST_MS: 5000,
@@ -21,69 +19,82 @@ const cfg = {
   MAX_PUMPS_PER_DAY: 6,
   PUMP_ACTIVE_LOW: true,
   ADC_MAX: 1023,
-  // sim-only
-  EVAP_RAW_PER_SEC: 8,        // soil raw value increases (drier) over time
-  SOIL_DROP_PER_BURST: 600,   // how much raw drops per full burst (gets wetter)
+  EVAP_RAW_PER_SEC: 8,
+  SOIL_DROP_PER_BURST: 600,
   TANK_DROP_PER_BURST: 14
 };
 
 const sim = {
-  running: false,
-  paused: false,
-  fsm: 'IDLE',
-  soilRaw: 500,
-  tankLevel: 80,
-  pumpsToday: 0,
-  lastPumpAt: 0,
-  lastSampleAt: 0,
-  lastTankAlertAt: 0,
-  pumpStartedAt: 0,
-  soakStartedAt: 0,
-  startedAt: 0,
-  lastTick: 0,
-  manualSoil: false,
-  manualTank: false,
+  running: false, paused: false, fsm: 'IDLE',
+  soilRaw: 500, tankLevel: 80, pumpsToday: 0,
+  lastPumpAt: 0, lastSampleAt: 0, lastTankAlertAt: 0,
+  pumpStartedAt: 0, soakStartedAt: 0,
+  startedAt: 0, lastTick: 0,
+  manualSoil: false, manualTank: false,
   rafId: 0
 };
 
-// ===================== EDITOR =====================
-const sketchEd  = $('sketchEditor');
-const diagramEd = $('diagramEditor');
-const sketchGutter  = $('sketchGutter');
-const diagramGutter = $('diagramGutter');
+// Monaco editors (assigned once Monaco loads)
+let sketchEditor = null;
+let diagramEditor = null;
 
-function updateGutter(textarea, gutter) {
-  const lines = textarea.value.split('\n').length;
-  let s = '';
-  for (let i = 1; i <= lines; i++) s += i + '\n';
-  gutter.textContent = s;
-  gutter.scrollTop = textarea.scrollTop;
-}
-
-function setupEditor(textarea, gutter) {
-  textarea.addEventListener('input',  () => { updateGutter(textarea, gutter); markDirty(); });
-  textarea.addEventListener('scroll', () => { gutter.scrollTop = textarea.scrollTop; });
-  textarea.addEventListener('keydown', e => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const s = textarea.selectionStart, en = textarea.selectionEnd;
-      textarea.value = textarea.value.slice(0, s) + '  ' + textarea.value.slice(en);
-      textarea.selectionStart = textarea.selectionEnd = s + 2;
-      updateGutter(textarea, gutter);
-      markDirty();
-    }
+// ===================== MONACO BOOTSTRAP =====================
+function initMonaco() {
+  monaco.editor.defineTheme('plant-dark', {
+    base: 'vs-dark', inherit: true, rules: [],
+    colors: { 'editor.background': '#1e1e1e' }
   });
-  textarea.addEventListener('click',   () => updateLineCol(textarea));
-  textarea.addEventListener('keyup',   () => updateLineCol(textarea));
+
+  const common = {
+    theme: 'plant-dark',
+    automaticLayout: true,
+    minimap: { enabled: false },
+    fontSize: 13,
+    fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+    tabSize: 2,
+    insertSpaces: true,
+    scrollBeyondLastLine: false,
+    smoothScrolling: true,
+    cursorBlinking: 'smooth',
+    renderLineHighlight: 'gutter',
+    wordWrap: 'off'
+  };
+
+  sketchEditor = monaco.editor.create($('sketchEditor'), {
+    ...common,
+    value: window.DEFAULT_SKETCH,
+    language: 'cpp'
+  });
+
+  diagramEditor = monaco.editor.create($('diagramEditor'), {
+    ...common,
+    value: window.DEFAULT_DIAGRAM,
+    language: 'json'
+  });
+
+  sketchEditor.onDidChangeModelContent(() => markDirty());
+  diagramEditor.onDidChangeModelContent(() => markDirty());
+
+  const updateLnCol = ed => () => {
+    const pos = ed.getPosition();
+    if (pos) $('lineCol').textContent = `Ln ${pos.lineNumber}, Col ${pos.column}`;
+  };
+  sketchEditor.onDidChangeCursorPosition(updateLnCol(sketchEditor));
+  diagramEditor.onDidChangeCursorPosition(updateLnCol(diagramEditor));
+
+  $('editorLoading').classList.add('hidden');
+  applyConstants(extractConstants(sketchEditor.getValue()));
+  setStatus('ready — click ▶ Run to start the simulation', '');
 }
 
-function updateLineCol(textarea) {
-  const pos = textarea.selectionStart;
-  const before = textarea.value.slice(0, pos);
-  const line = before.split('\n').length;
-  const col = pos - before.lastIndexOf('\n');
-  $('lineCol').textContent = `Ln ${line}, Col ${col}`;
-}
+if (window.monacoReady) initMonaco();
+else window.addEventListener('monaco-ready', initMonaco);
+
+// helpers to get/set content
+function getSketch()  { return sketchEditor  ? sketchEditor.getValue()  : window.DEFAULT_SKETCH; }
+function getDiagram() { return diagramEditor ? diagramEditor.getValue() : window.DEFAULT_DIAGRAM; }
+function setSketch(t)  { if (sketchEditor)  sketchEditor.setValue(t); }
+function setDiagram(t) { if (diagramEditor) diagramEditor.setValue(t); }
 
 function markDirty()  { $('dirtyDot').classList.add('dirty'); }
 function clearDirty() { $('dirtyDot').classList.remove('dirty'); }
@@ -97,6 +108,10 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('[data-tab-pane]').forEach(p => {
       p.classList.toggle('hidden', p.dataset.tabPane !== name);
     });
+    $('editorLang').textContent = name === 'sketch' ? 'C++' : name === 'diagram' ? 'JSON' : '';
+    // Monaco needs an explicit relayout after the container becomes visible
+    if (name === 'sketch'  && sketchEditor)  { setTimeout(() => { sketchEditor.layout();  sketchEditor.focus();  }, 0); }
+    if (name === 'diagram' && diagramEditor) { setTimeout(() => { diagramEditor.layout(); diagramEditor.focus(); }, 0); }
   });
 });
 
@@ -117,18 +132,16 @@ function parseExpr(s) {
   if (t === 'false') return false;
   if (t === 'LOW')   return 0;
   if (t === 'HIGH')  return 1;
-  // numeric: strip C++ integer suffixes (UL, U, L, LL, ULL) and casts.
   const cleaned = t
-    .replace(/\bD\d+\b/g, '')          // ignore NodeMCU pin macros
+    .replace(/\bD\d+\b/g, '')
     .replace(/\bA0\b/g, '0')
-    .replace(/\([^)]*\)\s*/g, '')      // strip simple type casts
+    .replace(/\([^)]*\)\s*/g, '')
     .replace(/[ULul]+(?=[\s\*\/\+\-\)]|$)/g, '');
   try { return Function('"use strict"; return (' + cleaned + ');')(); }
   catch (e) { return null; }
 }
 
 function extractConstants(code) {
-  // Remove single-line comments to avoid confusing the regex
   const stripped = code.replace(/\/\/.*$/gm, '');
   const re = /\bconst\s+[\w\s\*]+?\s+(\w+)\s*=\s*([^;]+);/g;
   const out = {};
@@ -145,15 +158,12 @@ function applyConstants(consts) {
   const map = ['DRY_THRESHOLD','WET_FLOOR','PUMP_BURST_MS','SOAK_WAIT_MS',
                'PUMP_COOLDOWN_MS','SAMPLE_INTERVAL_MS','MAX_PUMPS_PER_DAY',
                'PUMP_ACTIVE_LOW'];
-  const found = [];
-  const missing = [];
+  const found = [], missing = [];
   map.forEach(k => {
     if (typeof consts[k] === 'number' || typeof consts[k] === 'boolean') {
-      cfg[k] = consts[k];
-      found.push(k);
+      cfg[k] = consts[k]; found.push(k);
     } else missing.push(k);
   });
-  // ADC range: if DRY_THRESHOLD > 2000, assume ESP32 (12-bit, 0-4095)
   cfg.ADC_MAX = (cfg.DRY_THRESHOLD > 1200 || cfg.WET_FLOOR > 1100) ? 4095 : 1023;
   renderConfig();
   return { found, missing };
@@ -175,12 +185,8 @@ function fmtMs(ms) {
   return (ms / 1000).toFixed(ms % 1000 ? 1 : 0) + 's';
 }
 
-// ===================== SIM TIMINGS (scaled for watchability) =====================
-// Real Arduino timings can be minutes/hours. We scale them down so the demo
-// is observable, but the RELATIVE ratios are preserved.
+// ===================== TIMING SCALE =====================
 function getScaledTimings() {
-  // Reference: real PUMP_BURST_MS is 5s. We'll show that as 3s in the sim.
-  // Everything else scales by the same ratio.
   const scale = 3000 / Math.max(cfg.PUMP_BURST_MS, 1);
   return {
     burst:    cfg.PUMP_BURST_MS    * scale,
@@ -190,7 +196,7 @@ function getScaledTimings() {
   };
 }
 
-// ===================== SIMULATION LOOP =====================
+// ===================== SIMULATION =====================
 function rawToPercent(raw) {
   if (raw <= cfg.WET_FLOOR) return 100;
   if (raw >= cfg.DRY_THRESHOLD) return 0;
@@ -204,11 +210,8 @@ function setFsm(next) {
   sim.fsm = next;
   $('bannerFsm').textContent = next;
   $('bannerFsm').setAttribute('fill',
-    next === 'PUMPING' ? '#5aa9ff' :
-    next === 'SOAKING' ? '#ffb454' : '#7cd992');
-  const scene = $('scene');
-  if (next === 'PUMPING') scene.classList.add('pumping');
-  else scene.classList.remove('pumping');
+    next === 'PUMPING' ? '#5aa9ff' : next === 'SOAKING' ? '#ffb454' : '#7cd992');
+  $('scene').classList.toggle('pumping', next === 'PUMPING');
   log(`[FSM] -> ${next}`, next === 'PUMPING' ? 'info' : '');
 }
 
@@ -253,7 +256,7 @@ function sample(now, t) {
     sim.pumpStartedAt = now;
     setFsm('PUMPING');
   } else if (isDry && !quotaLeft && cooldownOver) {
-    pushMsg(`Soil still dry but daily pump quota reached. Possible blockage. (${pct}%)`, 'warn');
+    pushMsg(`Soil still dry but daily pump quota reached. (${pct}%)`, 'warn');
     sim.lastPumpAt = now;
   }
 }
@@ -277,13 +280,15 @@ function finishCycle(now) {
 function tick() {
   if (!sim.running) return;
   const now = performance.now();
-  const dt  = (now - sim.lastTick) / 1000;
+  const dt = (now - sim.lastTick) / 1000;
   sim.lastTick = now;
-  if (sim.paused) { sim.rafId = requestAnimationFrame(tick); render(now, getScaledTimings()); return; }
-
+  if (sim.paused) {
+    sim.rafId = requestAnimationFrame(tick);
+    render(now);
+    return;
+  }
   const t = getScaledTimings();
 
-  // natural drying: raw value rises toward DRY_THRESHOLD
   if (!sim.manualSoil && sim.fsm !== 'PUMPING') {
     sim.soilRaw = Math.min(cfg.ADC_MAX, sim.soilRaw + cfg.EVAP_RAW_PER_SEC * dt);
   }
@@ -293,8 +298,7 @@ function tick() {
   } else if (sim.fsm === 'PUMPING') {
     const elapsed = now - sim.pumpStartedAt;
     const frac = Math.min(1, elapsed / t.burst) - Math.min(1, (elapsed - dt * 1000) / t.burst);
-    // soil gets wetter: raw drops toward WET_FLOOR
-    sim.soilRaw  = Math.max(cfg.WET_FLOOR, sim.soilRaw - cfg.SOIL_DROP_PER_BURST * frac);
+    sim.soilRaw = Math.max(cfg.WET_FLOOR, sim.soilRaw - cfg.SOIL_DROP_PER_BURST * frac);
     sim.tankLevel = Math.max(0, sim.tankLevel - cfg.TANK_DROP_PER_BURST * frac);
     if (elapsed >= t.burst) {
       sim.soakStartedAt = now;
@@ -308,45 +312,38 @@ function tick() {
     }
   }
 
-  render(now, t);
+  render(now);
   sim.rafId = requestAnimationFrame(tick);
 }
 
-function render(now, t) {
-  // Tank water rect: y between 30 and 230, height proportional
+function render() {
   const tankH = (sim.tankLevel / 100) * 200;
   const water = document.querySelector('.tank-water');
   water.setAttribute('height', tankH);
   water.setAttribute('y', 30 + (200 - tankH));
 
-  // Soil color interpolation
   const pct = rawToPercent(sim.soilRaw) / 100;
   const dry = [160, 118, 84], wet = [77, 50, 32];
   const c = dry.map((d, i) => Math.round(d + (wet[i] - d) * pct));
   document.querySelector('.soil-fill').setAttribute('fill', `rgb(${c.join(',')})`);
 
-  // Leaves color
-  const leaves = document.querySelectorAll('.leaf');
-  const droopy = pct < 0.25;
-  const meh    = pct < 0.45;
-  leaves.forEach(l => l.setAttribute('fill', droopy ? '#a8b96a' : (meh ? '#7eb86b' : '#3eb371')));
+  document.querySelectorAll('.leaf').forEach(l => {
+    l.setAttribute('fill', pct < 0.25 ? '#a8b96a' : pct < 0.45 ? '#7eb86b' : '#3eb371');
+  });
 
-  // Banner + status numbers
   const pctRound = Math.round(pct * 100);
   $('bannerMoist').textContent = pctRound + '%';
   $('soilVal').textContent = pctRound;
   $('tankVal').textContent = Math.round(sim.tankLevel);
   $('pumpsToday').textContent = sim.pumpsToday;
 
-  // Sync sliders unless user is dragging
   if (!sim.manualSoil) $('soilSlider').value = pctRound;
   if (!sim.manualTank) $('tankSlider').value = Math.round(sim.tankLevel);
 }
 
 // ===================== RUN/PAUSE/RESET =====================
 function doRun() {
-  const code = sketchEd.value;
-  const consts = extractConstants(code);
+  const consts = extractConstants(getSketch());
   const { found, missing } = applyConstants(consts);
 
   if (found.length === 0) {
@@ -357,24 +354,20 @@ function doRun() {
     setStatus(`Parsed ${found.length} constants (${missing.length} missing — using defaults)`, 'warning');
   }
 
-  // reset state but keep sliders at user-set values
-  sim.fsm = 'IDLE';
-  sim.pumpsToday = 0;
-  sim.lastPumpAt = 0;
-  sim.lastSampleAt = 0;
-  sim.lastTankAlertAt = 0;
-  sim.pumpStartedAt = 0;
-  sim.soakStartedAt = 0;
-  sim.startedAt = performance.now();
-  sim.lastTick = performance.now();
-  sim.running = true;
-  sim.paused = false;
+  Object.assign(sim, {
+    fsm: 'IDLE', pumpsToday: 0,
+    lastPumpAt: 0, lastSampleAt: 0, lastTankAlertAt: 0,
+    pumpStartedAt: 0, soakStartedAt: 0,
+    startedAt: performance.now(), lastTick: performance.now(),
+    running: true, paused: false
+  });
+
   $('scene').classList.remove('pumping');
   $('bannerFsm').textContent = 'IDLE';
   $('bannerFsm').setAttribute('fill', '#7cd992');
-
   $('serialOutput').innerHTML = '';
   $('telegramFeed').innerHTML = '';
+
   log('Plant agent online.', 'ok');
   log(`ADC range: 0..${cfg.ADC_MAX} (detected ${cfg.ADC_MAX === 4095 ? 'ESP32' : 'ESP8266'} thresholds)`, 'info');
   pushMsg('Plant agent online. Watching the soil.', 'ok');
@@ -391,8 +384,7 @@ function doPause() {
 }
 
 function doReset() {
-  sim.running = false;
-  sim.paused = false;
+  sim.running = false; sim.paused = false;
   cancelAnimationFrame(sim.rafId);
   $('scene').classList.remove('pumping');
   $('bannerFsm').textContent = 'IDLE';
@@ -403,7 +395,7 @@ function doReset() {
   sim.soilRaw = percentToRaw(60);
   sim.tankLevel = 80;
   sim.pumpsToday = 0;
-  render(performance.now(), getScaledTimings());
+  render();
   setStatus('reset — click Run to start', '');
 }
 
@@ -413,13 +405,10 @@ function loadFile(file) {
   reader.onload = e => {
     const text = e.target.result;
     if (file.name.endsWith('.json')) {
-      diagramEd.value = text;
-      updateGutter(diagramEd, diagramGutter);
-      // switch to diagram tab
+      setDiagram(text);
       document.querySelector('.tab[data-tab="diagram"]').click();
     } else {
-      sketchEd.value = text;
-      updateGutter(sketchEd, sketchGutter);
+      setSketch(text);
       document.querySelector('.tab[data-tab="sketch"]').click();
     }
     markDirty();
@@ -429,15 +418,12 @@ function loadFile(file) {
 }
 
 function saveSketch() {
-  const blob = new Blob([sketchEd.value], { type: 'text/plain' });
+  const blob = new Blob([getSketch()], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'sketch.ino';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = 'sketch.ino';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
   clearDirty();
   setStatus('Sketch downloaded as sketch.ino', '');
 }
@@ -445,68 +431,70 @@ function saveSketch() {
 function resetToExample() {
   if ($('dirtyDot').classList.contains('dirty') &&
       !confirm('Discard your edits and reload the example?')) return;
-  sketchEd.value  = window.DEFAULT_SKETCH;
-  diagramEd.value = window.DEFAULT_DIAGRAM;
-  updateGutter(sketchEd, sketchGutter);
-  updateGutter(diagramEd, diagramGutter);
+  setSketch(window.DEFAULT_SKETCH);
+  setDiagram(window.DEFAULT_DIAGRAM);
   clearDirty();
   setStatus('Reset to example sketch', '');
 }
 
-// ===================== INIT =====================
-function init() {
-  sketchEd.value  = window.DEFAULT_SKETCH;
-  diagramEd.value = window.DEFAULT_DIAGRAM;
-  setupEditor(sketchEd,  sketchGutter);
-  setupEditor(diagramEd, diagramGutter);
-  updateGutter(sketchEd,  sketchGutter);
-  updateGutter(diagramEd, diagramGutter);
-  clearDirty();
-  applyConstants(extractConstants(sketchEd.value));
-  sim.soilRaw = percentToRaw(60);
-  sim.tankLevel = 80;
-  render(performance.now(), getScaledTimings());
-  setStatus('ready — click ▶ Run to start the simulation', '');
+// ===================== PWA INSTALL =====================
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  $('installBtn').hidden = false;
+});
+$('installBtn').addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  $('installBtn').hidden = true;
+});
+window.addEventListener('appinstalled', () => {
+  $('installBtn').hidden = true;
+  setStatus('Installed as desktop app ✓', '');
+});
 
-  // Buttons
-  $('runBtn').addEventListener('click', doRun);
-  $('pauseBtn').addEventListener('click', doPause);
-  $('resetBtn').addEventListener('click', doReset);
-  $('exampleBtn').addEventListener('click', resetToExample);
-  $('saveBtn').addEventListener('click', saveSketch);
-  $('loadInput').addEventListener('change', e => {
-    if (e.target.files[0]) loadFile(e.target.files[0]);
-    e.target.value = '';
-  });
-  $('clearSerialBtn').addEventListener('click', () => { $('serialOutput').innerHTML = ''; });
-  $('clearTelegramBtn').addEventListener('click', () => { $('telegramFeed').innerHTML = ''; });
+// ===================== BUTTONS / KEYS =====================
+$('runBtn').addEventListener('click', doRun);
+$('pauseBtn').addEventListener('click', doPause);
+$('resetBtn').addEventListener('click', doReset);
+$('exampleBtn').addEventListener('click', resetToExample);
+$('saveBtn').addEventListener('click', saveSketch);
+$('loadInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+  e.target.value = '';
+});
+$('clearSerialBtn').addEventListener('click', () => { $('serialOutput').innerHTML = ''; });
+$('clearTelegramBtn').addEventListener('click', () => { $('telegramFeed').innerHTML = ''; });
 
-  // Sliders
-  $('soilSlider').addEventListener('input', e => {
-    sim.manualSoil = true;
-    sim.soilRaw = percentToRaw(+e.target.value);
-  });
-  $('soilSlider').addEventListener('change', () => sim.manualSoil = false);
-  $('tankSlider').addEventListener('input', e => {
-    sim.manualTank = true;
-    sim.tankLevel = +e.target.value;
-  });
-  $('tankSlider').addEventListener('change', () => sim.manualTank = false);
-  $('dryBtn').addEventListener('click', () => {
-    sim.soilRaw = cfg.DRY_THRESHOLD + 30;
-    if (sim.running) log('[user] forced soil to dry', 'warn');
-  });
-  $('refillBtn').addEventListener('click', () => {
-    sim.tankLevel = 100;
-    if (sim.running) pushMsg('🪣 Tank refilled to 100%.', 'ok');
-  });
+$('soilSlider').addEventListener('input', e => {
+  sim.manualSoil = true;
+  sim.soilRaw = percentToRaw(+e.target.value);
+});
+$('soilSlider').addEventListener('change', () => sim.manualSoil = false);
+$('tankSlider').addEventListener('input', e => {
+  sim.manualTank = true;
+  sim.tankLevel = +e.target.value;
+});
+$('tankSlider').addEventListener('change', () => sim.manualTank = false);
+$('dryBtn').addEventListener('click', () => {
+  sim.soilRaw = cfg.DRY_THRESHOLD + 30;
+  if (sim.running) log('[user] forced soil to dry', 'warn');
+});
+$('refillBtn').addEventListener('click', () => {
+  sim.tankLevel = 100;
+  if (sim.running) pushMsg('🪣 Tank refilled to 100%.', 'ok');
+});
 
-  // Keyboard shortcuts
-  document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveSketch(); }
-  });
-}
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveSketch(); }
+});
 
-init();
+// initial render with defaults
+sim.soilRaw = percentToRaw(60);
+sim.tankLevel = 80;
+render();
 })();

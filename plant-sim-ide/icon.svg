@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="92" fill="#1e1e1e"/>
+  <g transform="translate(256 270)">
+    <!-- pot -->
+    <polygon points="-110,80 110,80 95,180 -95,180" fill="#c36f47" stroke="#7a3e22" stroke-width="3"/>
+    <rect x="-118" y="70" width="236" height="18" fill="#a85a32" stroke="#7a3e22" stroke-width="3" rx="3"/>
+    <!-- soil -->
+    <rect x="-100" y="76" width="200" height="14" fill="#5a3a22" rx="2"/>
+    <!-- stem -->
+    <path d="M 0 76 Q -4 0 0 -80 Q 4 -160 0 -220" stroke="#2f7f44" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <!-- leaves -->
+    <ellipse cx="-60" cy="-30" rx="55" ry="26" fill="#3eb371" transform="rotate(-35 -60 -30)"/>
+    <ellipse cx="60" cy="-90" rx="55" ry="26" fill="#3eb371" transform="rotate(35 60 -90)"/>
+    <ellipse cx="-50" cy="-150" rx="48" ry="22" fill="#7cd992" transform="rotate(-30 -50 -150)"/>
+    <ellipse cx="50" cy="-200" rx="42" ry="20" fill="#7cd992" transform="rotate(30 50 -200)"/>
+    <!-- water droplet -->
+    <path d="M 140 -20 Q 130 -5 140 5 Q 150 -5 140 -20 Z" fill="#5fb8ff"/>
+  </g>
+</svg>
